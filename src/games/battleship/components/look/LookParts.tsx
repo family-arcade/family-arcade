@@ -94,10 +94,13 @@ export function LookHero({ look, compact = false }: { look: ArcadeLook; compact?
 /** The 1P / 2P tag on a lobby door: the coin-op way of saying who it's for. */
 export function DoorTag({ players }: { players: 1 | 2 }) {
   return (
-    <span className="lk-door-tag" aria-hidden="true">
-      <span className="lk-door-tag-n">{players}P</span>
-      <span className="lk-door-tag-w">Admit {players === 2 ? 'two' : 'one'}</span>
-    </span>
+    <>
+      <span className="lk-door-tag" aria-hidden="true">
+        <span className="lk-door-tag-n">{players}P</span>
+        <span className="lk-door-tag-w">Admit {players === 2 ? 'two' : 'one'}</span>
+      </span>
+      <span className="sr-only">{players === 2 ? '2 players' : '1 player'}</span>
+    </>
   );
 }
 

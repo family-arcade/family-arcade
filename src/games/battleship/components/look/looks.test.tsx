@@ -37,6 +37,9 @@ describe('the darker-arcade looks on the start screens', () => {
     expect(screen.getByTestId('look-hero')).toHaveClass(`lk-hero-${look}`);
     expect(screen.getByTestId('look-hero')).not.toHaveClass('compact');
     expect(container.querySelectorAll('.lk-door-tag')).toHaveLength(2);
+    // The tag is a picture of a number; each door also says its count in words.
+    expect(container.querySelector('.lobby-door-duo .sr-only')).toHaveTextContent('2 players');
+    expect(container.querySelector('.lobby-door-solo .sr-only')).toHaveTextContent('1 player');
     // The levels and the ships switch sit on the lobby itself.
     expect(screen.getAllByTestId(/^level-/)).toHaveLength(4);
     expect(screen.getByTestId('ships-modern')).toBeInTheDocument();

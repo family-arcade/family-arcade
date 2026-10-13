@@ -268,8 +268,15 @@ describe('<RacerPage> — leaving a race asks first', () => {
 describe('<RacerPage> — solo setup flow', () => {
   it('offers 1-player and 2-player modes, and picking solo advances to the driver picker', () => {
     renderRacer();
-    expect(screen.getByTestId('racer-mode-solo')).toHaveTextContent('1 Player');
-    expect(screen.getByTestId('racer-mode-net')).toHaveTextContent('Play together');
+    const solo = screen.getByTestId('racer-mode-solo');
+    const net = screen.getByTestId('racer-mode-net');
+    expect(solo).toHaveTextContent('Solo race');
+    expect(net).toHaveTextContent('Play together');
+    // Each card says its player count on a chip, spoken as words.
+    expect(solo.querySelector('.racer-pcount')).toHaveTextContent('1P');
+    expect(net.querySelector('.racer-pcount')).toHaveTextContent('2P');
+    expect(solo).toHaveAccessibleName(/Solo race\s*, 1 player/);
+    expect(net).toHaveAccessibleName(/Play together\s*, 2 players/);
 
     goToPicker();
     expect(screen.getByText('Pick your racer')).toBeInTheDocument();

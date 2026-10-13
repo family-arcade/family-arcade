@@ -33,19 +33,22 @@ export function ModeScreen({ onPick }: { onPick: (m: RaceMode) => void }) {
       </div>
       <div className="racer-choices">
         <button className="racer-big-btn" onClick={() => onPick('solo')} data-testid="racer-mode-solo">
+          <span className="racer-pcount" aria-hidden="true">1P</span>
           <span className="racer-big-pics">
             <img className="racer-big-pic" src={driverById('unicorn').portrait} alt="" />
           </span>
-          <span className="racer-big-label">1 Player</span>
+          <span className="racer-big-label">Solo race<span className="sr-only">, 1 player</span></span>
           <span className="racer-big-sub">Race three sky racers</span>
         </button>
         <button className="racer-big-btn" onClick={() => onPick('net')} data-testid="racer-mode-net">
+          <span className="racer-pcount" aria-hidden="true">2P</span>
           <span className="racer-big-pics">
             <img className="racer-big-pic" src={driverById('unicorn').portrait} alt="" />
             <img className="racer-big-pic" src={driverById('fairy').portrait} alt="" />
           </span>
-          <span className="racer-big-label">Play together</span>
-          <span className="racer-big-sub">Race a friend on another device</span>
+          <span className="racer-big-label">Play together<span className="sr-only">, 2 players</span></span>
+          {/* A subline under the mode name; the copy check reads it as a label. */}
+          <span className="racer-big-sub" data-copy-ok="long-heading">Race a friend on another device</span>
         </button>
       </div>
     </div>

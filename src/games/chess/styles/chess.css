@@ -618,12 +618,255 @@ body:has(.chess-immersive) .party-root {
   100% { opacity: 0.6; width: 122px; }
 }
 
-/* Same-device setup: "Swap sides" is a small trade between the two chairs, not
-   a third full-width action competing with Start game and Back. */
-.chess-swap-btn {
-  justify-self: center;
-  display: inline-flex; align-items: center; gap: 8px;
-  padding: 6px 14px;
+/* ── The lobby, count first ─────────────────────────────────────────────────
+   The count screen (two tall cards with the 1P / 2P coin), the ways to play
+   for that count, and the second chair under Same device. The markup is the
+   same in every world; each theme scope below sets the --cl-* tokens, taken
+   from its own palette. */
+.chess-lobby {
+  --cl-panel: var(--surface);
+  --cl-line: var(--border);
+  --cl-title: var(--accent);
+  --cl-mut: var(--muted);
+  --cl-icon: var(--accent);
+  --cl-icon-glow: none;
+  --cl-stripe: var(--accent);
+  --cl-r: 10px;
+  --cl-lift: none;
+  --cl-focus: var(--accent);
+  --cl-coin-bg: var(--accent);
+  --cl-coin-tx: var(--bg);
+  --cl-coin-ring: var(--bg);
+  --cl-coin-glow: 0 0 0 transparent;
+  --cl-title-glow: none;
+  --cl-tfont: inherit;
+  --cl-row-bg: var(--surface);
+}
+.chess-theme-classic.chess-lobby {
+  --cl-panel: linear-gradient(180deg, #3c2a19, #2c1d11);
+  --cl-line: #8a6a34;
+  --cl-title: #e7cf95;
+  --cl-mut: #b3a082;
+  --cl-icon: #c2a15a;
+  --cl-stripe: linear-gradient(90deg, #6d5126, #e7cf95 50%, #6d5126);
+  --cl-r: 6px;
+  --cl-lift: inset 0 1px 0 rgba(231, 207, 149, 0.1), 0 10px 28px -16px #000;
+  --cl-focus: #f3dc9c;
+  --cl-coin-bg: radial-gradient(circle at 38% 30%, #f6e2a8, #c9a75e 52%, #7d5e2c);
+  --cl-coin-tx: #2a1a0e;
+  --cl-coin-ring: #150d07;
+  --cl-title-glow: 0 1px 0 #000;
+  --cl-tfont: 'Hoefler Text', 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+  --cl-row-bg: rgba(32, 21, 12, 0.6);
+}
+.chess-theme-unicorn.chess-lobby {
+  --cl-panel: linear-gradient(180deg, #4b2b64, #3a2150);
+  --cl-line: #8b5bb0;
+  --cl-title: #ffc9e5;
+  --cl-mut: #e2c4ec;
+  --cl-icon: #ff8fd0;
+  --cl-icon-glow: drop-shadow(0 0 10px rgba(255, 126, 192, 0.45));
+  --cl-stripe: linear-gradient(90deg, #ff9ecb, #ffd59e, #fff3a6, #a8f0c8, #a8d8ff, #c9b3ff);
+  --cl-r: 20px;
+  --cl-lift: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 14px 30px -18px rgba(20, 0, 30, 0.9);
+  --cl-focus: #f7c243;
+  --cl-coin-bg: radial-gradient(circle at 38% 30%, #fff6cc, #f7c243 55%, #d6921a);
+  --cl-coin-tx: #4a2a55;
+  --cl-coin-ring: #4a2a55;
+  --cl-title-glow: 0 0 14px rgba(255, 126, 192, 0.5);
+  --cl-row-bg: rgba(42, 20, 56, 0.6);
+}
+.chess-theme-galaxy.chess-lobby {
+  --cl-panel: linear-gradient(180deg, rgba(24, 36, 62, 0.92), rgba(14, 22, 40, 0.92));
+  --cl-line: #34497a;
+  --cl-title: #ffcf4a;
+  --cl-mut: #9fb2d4;
+  --cl-icon: #8fd0ff;
+  --cl-icon-glow: drop-shadow(0 0 12px rgba(143, 208, 255, 0.45));
+  --cl-stripe: linear-gradient(90deg, #ffcf4a, #ff9d3c 60%, #8fd0ff);
+  --cl-r: 10px;
+  --cl-lift: inset 0 1px 0 rgba(143, 208, 255, 0.12), 0 0 24px -10px rgba(90, 169, 255, 0.35);
+  --cl-focus: #8fd0ff;
+  --cl-coin-bg: radial-gradient(circle at 38% 30%, #fff2bf, #ffcf4a 55%, #c98a0e);
+  --cl-coin-tx: #1a1206;
+  --cl-coin-ring: #05070f;
+  --cl-coin-glow: 0 0 22px rgba(255, 207, 74, 0.45);
+  --cl-title-glow: 0 0 16px rgba(255, 207, 74, 0.4);
+  --cl-row-bg: rgba(10, 16, 30, 0.55);
+}
+
+/* The back corner already leads out; the footer link would only crowd the cards. */
+.chess-lobby .footer { display: none; }
+
+/* Title bar: back and the count coin, the centred sign, full screen. */
+.chess-lobby-top {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.chess-lobby-nav { display: flex; align-items: center; gap: 16px; }
+.chess-lobby-end { display: flex; justify-content: flex-end; align-items: center; gap: 10px; color: var(--cl-title); }
+.chess-lobby .chess-corner {
+  width: 52px; height: 52px; padding: 0;
+  display: inline-grid; place-items: center;
+  border-radius: var(--cl-r);
+  background: var(--cl-panel); border: 1.5px solid var(--cl-line); box-shadow: var(--cl-lift);
+  color: var(--cl-title); cursor: pointer;
+}
+.chess-lobby-count { display: inline-flex; }
+.chess-sign {
+  margin: 0;
+  display: flex; align-items: center; gap: 16px;
+  white-space: nowrap;
+  font-family: var(--cl-tfont); font-size: 34px; font-weight: 700; line-height: 1;
+  letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--cl-title); text-shadow: var(--cl-title-glow);
+}
+.chess-sign svg { fill: currentColor; flex: none; }
+.chess-sign-rule { width: 130px; height: 4px; border-radius: 2px; background: var(--cl-stripe); }
+
+/* Who is playing: the arcade's own line, centred and quiet. */
+.chess-who { display: flex; justify-content: center; margin-bottom: 18px; }
+.chess-who .pas { margin: 0; }
+.chess-who .pas-pill { background: var(--cl-row-bg); border-color: var(--cl-line); }
+
+.chess-lobby-body { display: flex; flex-direction: column; align-items: center; gap: 24px; }
+
+/* The coin: the player count, on the count cards and beside the back button. */
+.chess-coin {
+  --d: 60px;
+  width: var(--d); height: var(--d); flex: none;
+  display: inline-grid; place-items: center;
+  border-radius: 50%;
+  background: var(--cl-coin-bg); color: var(--cl-coin-tx);
+  font-family: ui-rounded, 'SF Pro Rounded', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  font-weight: 900; font-size: calc(var(--d) * 0.36); line-height: 1; letter-spacing: 0.01em;
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.55),
+    0 0 0 2px var(--cl-coin-ring),
+    0 4px 0 2px var(--cl-coin-ring),
+    var(--cl-coin-glow);
+}
+.chess-coin.sm { --d: 52px; }
+
+/* Count screen: two tall cards, the coin in the corner, the icon in the middle. */
+.chess-counts { display: flex; justify-content: center; gap: 40px; width: 100%; }
+.chess-count,
+.chess-way {
+  position: relative; overflow: hidden;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: var(--cl-panel); border: 2px solid var(--cl-line); box-shadow: var(--cl-lift);
+  color: var(--cl-title); font: inherit; text-align: center; cursor: pointer;
+}
+.chess-count::before,
+.chess-way::before { content: ''; position: absolute; inset: 0 0 auto; height: 12px; background: var(--cl-stripe); }
+.chess-count {
+  width: clamp(220px, 38vw, 560px);
+  height: clamp(240px, calc(100vh - 380px), 600px);
+  height: clamp(240px, calc(100dvh - 380px), 600px);
+  gap: 18px; padding: 36px 24px 32px;
+  border-radius: calc(var(--cl-r) + 10px);
+}
+.chess-count .chess-coin { position: absolute; left: 22px; top: 32px; --d: 76px; }
+.chess-count-pic,
+.chess-way-pic { display: grid; place-items: center; color: var(--cl-icon); filter: var(--cl-icon-glow); }
+.chess-count-pic svg { width: clamp(96px, 24vh, 240px); height: auto; }
+.chess-count-label { font-size: clamp(30px, 4.4vh, 44px); font-weight: 800; color: var(--cl-title); text-shadow: var(--cl-title-glow); }
+
+/* Ways screens: one tall card per way to play; three fit across when 1 player gets Computer. */
+.chess-ways {
+  display: grid; grid-auto-flow: column; grid-auto-columns: 1fr;
+  gap: 24px; width: 100%; align-items: start;
+}
+.chess-ways[data-cards='2'] { width: min(100%, 900px); }
+@media (min-width: 1600px) and (min-height: 1000px) {
+  .chess-ways[data-cards='2'] { width: min(100%, 1160px); }
+}
+.chess-way-col { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.chess-way {
+  width: 100%;
+  height: clamp(260px, calc(100vh - 400px), 600px);
+  height: clamp(260px, calc(100dvh - 400px), 600px);
+  gap: 12px; padding: 40px 24px 32px;
+  border-radius: calc(var(--cl-r) + 6px);
+}
+.chess-way::before { height: 10px; }
+.chess-way-pic { margin-bottom: 10px; }
+.chess-way-pic svg { width: clamp(80px, 16vh, 150px); height: auto; }
+.chess-way-label { font-size: clamp(26px, 3.6vh, 36px); font-weight: 700; color: var(--cl-title); text-shadow: var(--cl-title-glow); }
+/* Two lines held for every card, so the icons and labels line up across a row. */
+.chess-way-line { font-size: 18px; line-height: 1.35; min-height: 2.7em; color: var(--cl-mut); max-width: 320px; }
+
+/* The second chair, under Same device. */
+.chess-lobby .chess-p2 {
+  display: flex; align-items: center; gap: 12px;
+  width: 100%; min-height: 60px; padding: 8px 18px 8px 20px;
+  border-radius: 999px;
+  background: var(--cl-row-bg); border: 1.5px solid var(--cl-line);
+  color: var(--text); font: inherit; font-size: 18px; text-align: left; cursor: pointer;
+}
+.chess-p2-label { color: var(--cl-mut); font-weight: 700; }
+.chess-p2-who { display: inline-flex; align-items: center; gap: 10px; margin-left: auto; font-weight: 800; }
+.chess-p2-who.empty { color: var(--cl-title); }
+.chess-p2-blank {
+  width: 30px; height: 30px; border-radius: 50%;
+  display: grid; place-items: center;
+  border: 1.5px dashed var(--cl-line); color: var(--cl-mut);
+}
+.chess-p2-chev { font-size: 22px; color: var(--cl-mut); }
+
+/* Quiet rows under the count cards: a saved game, Join with a code. */
+.chess-rows { display: flex; flex-wrap: wrap; justify-content: center; gap: 14px; }
+.chess-lobby .chess-row {
+  min-height: 60px; padding: 8px 22px 8px 18px;
+  display: inline-flex; align-items: center; gap: 14px;
+  border-radius: 999px;
+  background: var(--cl-row-bg); border: 1.5px solid var(--cl-line);
+  color: var(--cl-mut); font: inherit; font-size: 19px; font-weight: 600; cursor: pointer;
+}
+.chess-row-resume { color: var(--text); }
+.chess-row-resume svg { color: var(--cl-title); }
+.chess-row-sub { font-size: 15px; font-weight: 500; color: var(--cl-mut); }
+.chess-row-chev { font-size: 22px; }
+.chess-tiles { display: inline-flex; gap: 4px; flex: none; }
+.chess-tiles i {
+  display: block; width: 16px; height: 22px; border-radius: 4px;
+  border: 1.5px solid #2a1f4a; background: linear-gradient(180deg, var(--t) 0 26%, #fffaf0 26%);
+}
+.chess-tiles i:nth-child(1) { --t: #ff4d5e; }
+.chess-tiles i:nth-child(2) { --t: #ff9f1c; }
+.chess-tiles i:nth-child(3) { --t: #35d07f; }
+.chess-tiles i:nth-child(4) { --t: #2ec4ff; }
+
+.chess-lobby .chess-corner:hover,
+.chess-count:hover,
+.chess-way:hover,
+.chess-lobby .chess-p2:hover,
+.chess-lobby .chess-row:hover { border-color: var(--cl-title); }
+.chess-lobby .chess-corner:focus-visible,
+.chess-count:focus-visible,
+.chess-way:focus-visible,
+.chess-lobby .chess-p2:focus-visible,
+.chess-lobby .chess-row:focus-visible { outline: 3px solid var(--cl-focus); outline-offset: 3px; }
+@media (prefers-reduced-motion: no-preference) {
+  .chess-count,
+  .chess-way { transition: transform 0.15s ease, border-color 0.15s ease; }
+  .chess-count:hover,
+  .chess-way:hover { transform: translateY(-3px); }
+  .chess-count:active,
+  .chess-way:active { transform: translateY(0) scale(0.99); }
+}
+
+/* A phone is a quick look: the cards stack and the page scrolls. */
+@media (max-width: 640px) {
+  .chess-sign { font-size: 24px; gap: 8px; }
+  .chess-sign-rule { display: none; }
+  .chess-counts { flex-direction: column; align-items: center; gap: 16px; }
+  .chess-count { width: 100%; height: 220px; }
+  .chess-ways { grid-auto-flow: row; }
+  .chess-way { height: 240px; }
 }
 
 /* The party host's colour pick: White, Black, or the coin — three across on a

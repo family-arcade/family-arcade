@@ -76,6 +76,23 @@ const rerenderPage = (r: ReturnType<typeof renderPage>) =>
     </MemoryRouter>,
   );
 
+/** The lobby's two taps: the count, then a way to play for that count. */
+function choose(count: 1 | 2, way: 'mode-local' | 'mode-online' | 'mode-free') {
+  fireEvent.click(screen.getByTestId(`chess-count-${count}`));
+  fireEvent.click(screen.getByTestId(way));
+}
+const goOnline = () => choose(2, 'mode-online');
+const goFree = () => choose(1, 'mode-free');
+/**
+ * 2 players, Same device, and Flora for chair two when the picker asks (it
+ * doesn't when the chair is remembered from last time): the game starts.
+ */
+function startLocal() {
+  choose(2, 'mode-local');
+  const flora = screen.queryByTestId('chess-p2-user-u2');
+  if (flora) fireEvent.click(flora);
+}
+
 /** Only characters the real generateCode can emit (no look-alikes O/0, I/1, L). */
 const CODE_RE = /^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{4}$/;
 
@@ -99,7 +116,7 @@ beforeEach(() => {
 describe('<ChessPage> — the party is the table', () => {
   it('not in a party: both code doors, and creating sits you down as host on a fresh code', () => {
     renderPage();
-    fireEvent.click(screen.getByTestId('mode-online'));
+    goOnline();
     expect(screen.getByTestId('chess-create')).toBeInTheDocument();
     expect(screen.getByTestId('chess-join')).toBeInTheDocument();
     expect(screen.queryByTestId('chess-party-play')).toBeNull();
@@ -117,7 +134,7 @@ describe('<ChessPage> — the party is the table', () => {
 
   it('not in a party: joining with a code sits you down as guest on it, as your ticket', () => {
     renderPage();
-    fireEvent.click(screen.getByTestId('mode-online'));
+    goOnline();
     fireEvent.change(screen.getByTestId('chess-join-code'), { target: { value: 'qrst' } });
     fireEvent.click(screen.getByTestId('chess-join'));
     expect(sat.calls).toEqual([{ role: 'guest', code: 'QRST', seatedUserId: 'u1' }]);
@@ -128,7 +145,7 @@ describe('<ChessPage> — the party is the table', () => {
     mockParty.value = fakePartyWithKai('host');
     const coin = vi.spyOn(Math, 'random').mockReturnValue(0.9); // tails: Black
     renderPage();
-    fireEvent.click(screen.getByTestId('mode-online'));
+    goOnline();
     fireEvent.click(screen.getByTestId('chess-side-flip'));
     expect(screen.getByTestId('chess-side-flip')).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByTestId('chess-side-w')).toHaveAttribute('aria-pressed', 'false');
@@ -142,7 +159,7 @@ describe('<ChessPage> — the party is the table', () => {
   it('host in a party: pick a colour, one tap opens the table and starts as host with that colour', () => {
     mockParty.value = fakePartyWithKai('host');
     renderPage();
-    fireEvent.click(screen.getByTestId('mode-online'));
+    goOnline();
 
     // No code doors — the friend is already here.
     expect(screen.queryByTestId('chess-create')).toBeNull();
@@ -169,14 +186,14 @@ describe('<ChessPage> — the party is the table', () => {
   it("host in a party before the friend's hello lands: the play button still reads sensibly", () => {
     mockParty.value = fakePartyWithKai('host', { theirName: null });
     renderPage();
-    fireEvent.click(screen.getByTestId('mode-online'));
+    goOnline();
     expect(screen.getByTestId('chess-party-play')).toHaveTextContent('Play Chess with your friend');
   });
 
   it("host in a party: ‹ Menu closes the table too, so the friend's screen never points at a hostless board", () => {
     mockParty.value = fakePartyWithKai('host');
     renderPage();
-    fireEvent.click(screen.getByTestId('mode-online'));
+    goOnline();
     fireEvent.click(screen.getByTestId('chess-party-play'));
     expect(screen.getByTestId('chess-board')).toBeInTheDocument();
 
@@ -187,7 +204,7 @@ describe('<ChessPage> — the party is the table', () => {
   it('guest in a party: knocks on Chess once, then sits down when the host opens the table', () => {
     mockParty.value = fakePartyWithKai('guest');
     const r = renderPage();
-    fireEvent.click(screen.getByTestId('mode-online'));
+    goOnline();
 
     expect(screen.getByTestId('chess-party-waiting')).toHaveTextContent('Waiting for Kai to open Chess');
     expect(screen.queryByTestId('chess-create')).toBeNull();
@@ -213,7 +230,7 @@ describe('<ChessPage> — the party is the table', () => {
   it('guest in a party: a Chess table already open means no knock — just sit down', () => {
     mockParty.value = fakePartyWithKai('guest', { table: { game: 'chess', code: 'QRST' } });
     renderPage();
-    fireEvent.click(screen.getByTestId('mode-online'));
+    goOnline();
     expect(mockParty.value.knockOn).not.toHaveBeenCalled();
     expect(sat.calls).toEqual([{ role: 'guest', code: 'QRST', seatedUserId: 'u1', hostSide: undefined }]);
   });
@@ -223,7 +240,7 @@ describe('<ChessPage> — the party is the table', () => {
     // a wrong chair: the default holds, host White, guest Black.
     mockParty.value = fakePartyWithKai('guest', { table: { game: 'chess', code: 'QRST', hostSide: 'white' } });
     renderPage();
-    fireEvent.click(screen.getByTestId('mode-online'));
+    goOnline();
     expect(sat.calls).toEqual([{ role: 'guest', code: 'QRST', seatedUserId: 'u1', hostSide: undefined }]);
     expect(loadChessGame('QRST')).toMatchObject({ side: 'guest', myColor: 'b' });
     expect(screen.getByTestId('chess-board')).toBeInTheDocument();
@@ -232,7 +249,7 @@ describe('<ChessPage> — the party is the table', () => {
   it('guest in a party: a table for another game still means knocking on Chess', () => {
     mockParty.value = fakePartyWithKai('guest', { table: { game: 'racer', code: 'RACE' } });
     renderPage();
-    fireEvent.click(screen.getByTestId('mode-online'));
+    goOnline();
     expect(mockParty.value.knockOn).toHaveBeenCalledWith('chess');
     expect(sat.calls).toEqual([]);
     expect(screen.getByTestId('chess-party-waiting')).toBeInTheDocument();
@@ -241,7 +258,7 @@ describe('<ChessPage> — the party is the table', () => {
   it('guest in a party: the table closing mid-dial hangs up and puts the guest back at the door', () => {
     mockParty.value = fakePartyWithKai('guest', { table: { game: 'chess', code: 'QRST' } });
     const r = renderPage();
-    fireEvent.click(screen.getByTestId('mode-online'));
+    goOnline();
     expect(net.joined).toEqual(['QRST']);
     expect(screen.getByTestId('chess-board')).toBeInTheDocument();
     expect(loadChessGame('QRST')).not.toBeNull();
@@ -267,7 +284,7 @@ describe('<ChessPage> — the party is the table', () => {
   it('guest in a party: a game that is actually connected is never torn down by the table closing', () => {
     mockParty.value = fakePartyWithKai('guest', { table: { game: 'chess', code: 'QRST' } });
     const r = renderPage();
-    fireEvent.click(screen.getByTestId('mode-online'));
+    goOnline();
     act(() => net.handlers.onStatus('connected'));
 
     const { knockOn } = mockParty.value;
@@ -281,7 +298,7 @@ describe('<ChessPage> — the party is the table', () => {
   it('rejoining a remembered party: a quiet line, no doors, no play button', () => {
     mockParty.value = fakeParty({ reconnecting: true });
     renderPage();
-    fireEvent.click(screen.getByTestId('mode-online'));
+    goOnline();
     expect(screen.getByTestId('chess-party-reconnecting')).toHaveTextContent('Reconnecting to your party');
     expect(screen.queryByTestId('chess-create')).toBeNull();
     expect(screen.queryByTestId('chess-join-code')).toBeNull();
@@ -292,7 +309,7 @@ describe('<ChessPage> — the party is the table', () => {
   it('leaving an online game tells the party which table it is leaving — the party decides whether that closes anything', () => {
     mockParty.value = fakePartyWithKai('host');
     const r = renderPage();
-    fireEvent.click(screen.getByTestId('mode-online'));
+    goOnline();
     fireEvent.click(screen.getByTestId('chess-party-play'));
 
     // The link fails; the error panel's way out is the exit-to-menu path.
@@ -304,7 +321,7 @@ describe('<ChessPage> — the party is the table', () => {
     // A guest says so too; the party ignores it (only the host closes a table).
     mockParty.value = fakePartyWithKai('guest', { table: { game: 'chess', code: 'QRST' } });
     renderPage();
-    fireEvent.click(screen.getByTestId('mode-online'));
+    goOnline();
     act(() => net.handlers.onStatus('error', 'Lost the link.'));
     fireEvent.click(screen.getByRole('button', { name: /Back to menu/ }));
     expect(mockParty.value.closeTable).toHaveBeenCalledWith('QRST');
@@ -313,16 +330,46 @@ describe('<ChessPage> — the party is the table', () => {
 
 describe('<ChessPage> — local flow', () => {
 
-  it('offers a mode picker with both same-device and online options', () => {
+  it('asks the count first, then offers only the ways to play that fit it', () => {
     renderPage();
-    expect(screen.getByTestId('mode-local')).toBeInTheDocument();
+    // The first screen: two counts and the quiet code row, nothing else to pick.
+    expect(screen.getByTestId('chess-count-1')).toHaveTextContent('1 player');
+    expect(screen.getByTestId('chess-count-2')).toHaveTextContent('2 players');
+    expect(screen.getByTestId('chess-join-row')).toHaveTextContent('Join with a code');
+    expect(screen.queryByTestId('mode-local')).toBeNull();
+    expect(screen.queryByTestId('mode-online')).toBeNull();
+    // Who is playing is already known, as in every other game.
+    expect(screen.getByTestId('playing-as')).toHaveTextContent('Rio');
+
+    // 1 player: Play together and Free play. No computer opponent yet.
+    fireEvent.click(screen.getByTestId('chess-count-1'));
+    expect(screen.getByTestId('chess-lobby-count')).toHaveTextContent('1 player');
+    expect(screen.getByTestId('mode-online')).toHaveTextContent('Play together');
+    expect(screen.getByTestId('mode-free')).toHaveTextContent('Free play');
+    expect(screen.queryByTestId('mode-local')).toBeNull();
+
+    // Back is the count screen; 2 players: Same device and Play together.
+    fireEvent.click(screen.getByTestId('chess-lobby-back'));
+    fireEvent.click(screen.getByTestId('chess-count-2'));
+    expect(screen.getByTestId('mode-local')).toHaveTextContent('Same device');
+    expect(screen.getByTestId('mode-local')).toHaveTextContent('Pass the device after each move.');
     expect(screen.getByTestId('mode-online')).toBeInTheDocument();
+    expect(screen.queryByTestId('mode-free')).toBeNull();
+    expect(screen.getByTestId('chess-player2')).toHaveTextContent(/Player 2\s*Choose/);
+  });
+
+  it('Join with a code opens the code field alone, and joins as your ticket', () => {
+    renderPage();
+    fireEvent.click(screen.getByTestId('chess-join-row'));
+    expect(screen.queryByTestId('chess-create')).toBeNull();
+    fireEvent.change(screen.getByTestId('chess-join-code'), { target: { value: 'efgh' } });
+    fireEvent.click(screen.getByTestId('chess-join'));
+    expect(sat.calls).toEqual([{ role: 'guest', code: 'EFGH', seatedUserId: 'u1' }]);
   });
 
   it('starts a same-device game and shows the board', () => {
     renderPage();
-    fireEvent.click(screen.getByTestId('mode-local'));
-    fireEvent.click(screen.getByTestId('start-local'));
+    startLocal();
     expect(screen.getByTestId('chess-board')).toBeInTheDocument();
     // White's chair starts on the signed-in player's ticket name.
     expect(screen.getByTestId('chess-turn')).toHaveTextContent(/Rio to move/);
@@ -330,26 +377,22 @@ describe('<ChessPage> — local flow', () => {
 
   it('plays a move and hands the turn to Black', () => {
     renderPage();
-    fireEvent.click(screen.getByTestId('mode-local'));
-    fireEvent.click(screen.getByTestId('start-local'));
+    startLocal();
 
     fireEvent.click(screen.getByTestId('sq-e2'));
     fireEvent.click(screen.getByTestId('sq-e4'));
 
-    // The pawn has moved (a piece SVG now sits on e4) and it's Black's turn.
+    // The pawn has moved (a piece SVG now sits on e4) and it's Black's turn:
+    // Flora, picked for chair two.
     expect(screen.getByTestId('sq-e4').querySelector('svg')).toBeTruthy();
     expect(screen.getByTestId('sq-e2').querySelector('svg')).toBeNull();
-    expect(screen.getByTestId('chess-turn')).toHaveTextContent(/Black to move/);
+    expect(screen.getByTestId('chess-turn')).toHaveTextContent(/Flora to move/);
   });
 
   it('names the player whose move it is, and takes moves back', () => {
     renderPage();
-    fireEvent.click(screen.getByTestId('mode-local'));
-
-    // Both chairs come from the roster: White already holds the signed-in
-    // ticket, and Flora takes Black with one tap.
-    fireEvent.click(screen.getByTestId('strip-user-u2'));
-    fireEvent.click(screen.getByTestId('start-local'));
+    // White is the signed-in ticket; Flora takes Black in the picker.
+    startLocal();
 
     expect(screen.getByTestId('chess-turn')).toHaveTextContent(/Rio to move/);
 
@@ -371,8 +414,7 @@ describe('<ChessPage> — local flow', () => {
 
   it('shows the move log and can return to an earlier move', () => {
     renderPage();
-    fireEvent.click(screen.getByTestId('mode-local'));
-    fireEvent.click(screen.getByTestId('start-local'));
+    startLocal();
 
     // Play 1.e4 e5 2.Nf3.
     for (const [from, to] of [['e2', 'e4'], ['e7', 'e5'], ['g1', 'f3']]) {
@@ -396,13 +438,12 @@ describe('<ChessPage> — local flow', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(screen.getByTestId('sq-f3').querySelector('svg')).toBeNull();
     expect(screen.getByTestId('sq-e4').querySelector('svg')).toBeTruthy();
-    expect(screen.getByTestId('chess-turn')).toHaveTextContent(/Black to move/);
+    expect(screen.getByTestId('chess-turn')).toHaveTextContent(/Flora to move/);
   });
 
   it('offers exactly two views — flat (the default) and 3D — behind the ☰ menu', () => {
     renderPage();
-    fireEvent.click(screen.getByTestId('mode-local'));
-    fireEvent.click(screen.getByTestId('start-local'));
+    startLocal();
     expect(screen.getByTestId('chess-board')).toBeInTheDocument();
 
     // The view options live in the ☰ menu now, as labelled rows.
@@ -420,7 +461,7 @@ describe('<ChessPage> — local flow', () => {
 
   it('free play: place, move, clear, and end the sandbox', () => {
     renderPage();
-    fireEvent.click(screen.getByTestId('mode-free'));
+    goFree();
 
     // Tap a white queen in the tray — it becomes a stamp: every square tapped
     // gets a queen, without re-picking from the tray.
@@ -471,7 +512,7 @@ describe('<ChessPage> — local flow', () => {
     fireEvent.click(screen.getByTestId('fp-confirm-clear'));
     expect(screen.getByTestId('fp-board').querySelectorAll('svg').length).toBe(0);
 
-    // Exit (in the menu) returns to the mode picker.
+    // Exit (in the menu) returns to the 1-player ways it came from.
     fireEvent.click(screen.getByTestId('fp-menu'));
     fireEvent.click(screen.getByTestId('fp-end'));
     expect(screen.getByTestId('mode-free')).toBeInTheDocument();
@@ -479,8 +520,7 @@ describe('<ChessPage> — local flow', () => {
 
   it('switches the whole set to the unicorn theme and remembers it', () => {
     const { container } = renderPage();
-    fireEvent.click(screen.getByTestId('mode-local'));
-    fireEvent.click(screen.getByTestId('start-local'));
+    startLocal();
 
     // Classic by default.
     expect(container.querySelector('.chess-theme-classic')).toBeTruthy();
@@ -504,14 +544,12 @@ describe('<ChessPage> — local flow', () => {
 
   it('autosaves a hotseat game and resumes it later — names, moves and all', () => {
     const first = renderPage();
-    fireEvent.click(screen.getByTestId('mode-local'));
-    fireEvent.click(screen.getByTestId('strip-user-u2'));
-    fireEvent.click(screen.getByTestId('start-local'));
+    startLocal();
     fireEvent.click(screen.getByTestId('sq-e2'));
     fireEvent.click(screen.getByTestId('sq-e4'));
     first.unmount(); // dinner time — everyone walks away
 
-    // Back at the mode picker, the saved game is offered…
+    // Back at the count screen, the saved game is offered…
     renderPage();
     const card = screen.getByTestId('chess-resume-local');
     expect(card).toHaveTextContent('Rio vs Flora');
@@ -526,8 +564,7 @@ describe('<ChessPage> — local flow', () => {
 
   it('deep-links straight into the saved hotseat game (?resume=local)', () => {
     const first = renderPage();
-    fireEvent.click(screen.getByTestId('mode-local'));
-    fireEvent.click(screen.getByTestId('start-local'));
+    startLocal();
     fireEvent.click(screen.getByTestId('sq-d2'));
     fireEvent.click(screen.getByTestId('sq-d4'));
     first.unmount();
@@ -535,21 +572,20 @@ describe('<ChessPage> — local flow', () => {
     renderPage('/chess?resume=local');
     expect(screen.getByTestId('chess-board')).toBeInTheDocument();
     expect(screen.getByTestId('sq-d4').querySelector('svg')).toBeTruthy();
-    expect(screen.getByTestId('chess-turn')).toHaveTextContent(/Black to move/);
+    expect(screen.getByTestId('chess-turn')).toHaveTextContent(/Flora to move/);
   });
 
   it('restores a stored galaxy theme on load', () => {
     localStorage.setItem('chess-theme-v1', 'galaxy');
     const { container } = renderPage();
-    fireEvent.click(screen.getByTestId('mode-local'));
-    fireEvent.click(screen.getByTestId('start-local'));
+    startLocal();
     expect(container.querySelector('.chess-theme-galaxy')).toBeTruthy();
     expect(screen.getByTestId('sq-e2').querySelector('svg')?.getAttribute('data-piece-theme')).toBe('galaxy');
   });
 
   it('free play can promote its setup into a real rules-bound game', () => {
     renderPage();
-    fireEvent.click(screen.getByTestId('mode-free'));
+    goFree();
 
     // No kings on the board yet — starting is refused with a friendly reason.
     fireEvent.click(screen.getByTestId('fp-start-game'));
@@ -585,7 +621,7 @@ describe('<ChessPage> — local flow', () => {
 
   it('refuses to start a free-play game that is already checkmate', () => {
     renderPage();
-    fireEvent.click(screen.getByTestId('mode-free'));
+    goFree();
 
     // Ka1 trapped by Qb2 guarded by Kb3 — mate before move one.
     fireEvent.click(screen.getByTestId('fp-tray-w-k'));
@@ -607,7 +643,7 @@ describe('<ChessPage> — local flow', () => {
   it('free play offers the theme picker too (in the menu)', () => {
     localStorage.setItem('chess-theme-v1', 'unicorn');
     const { container } = renderPage();
-    fireEvent.click(screen.getByTestId('mode-free'));
+    goFree();
 
     // The stored choice applies, and the sandbox can switch back.
     expect(container.querySelector('.chess-theme-unicorn')).toBeTruthy();
@@ -625,7 +661,7 @@ describe('<ChessPage> — local flow', () => {
 
   it('the online lobby plays as your ticket — no name box in sight', () => {
     renderPage();
-    fireEvent.click(screen.getByTestId('mode-online'));
+    goOnline();
     // Who you are is the ticket you signed in with; nothing asks again.
     expect(screen.getByTestId('playing-as')).toHaveTextContent('Rio');
     expect(screen.getByTestId('playing-as-change')).toHaveTextContent('Switch player ›');
@@ -634,24 +670,18 @@ describe('<ChessPage> — local flow', () => {
     expect(screen.getByTestId('chess-join-code')).toBeInTheDocument();
   });
 
-  it('same-device chairs come from the roster — seating someone signs nobody in', () => {
+  it('Same device with chair two empty opens the arcade picker for Player 2; a pick starts the game and signs nobody in', () => {
     renderPage();
-    fireEvent.click(screen.getByTestId('mode-local'));
+    choose(2, 'mode-local');
 
-    // Chair one opens on the signed-in ticket; the other waits for a tap.
-    expect(screen.getByTestId('seat-0')).toHaveTextContent('Rio');
-    expect(screen.getByTestId('seat-1')).toHaveTextContent(/tap a ticket/i);
-    // The old free-text boxes are gone, and the screen never carries the
-    // signed-in identity line the way the online lobby does.
-    expect(screen.queryByTestId('white-name')).toBeNull();
-    expect(screen.queryByTestId('black-name')).toBeNull();
-    expect(screen.queryByTestId('playing-as')).toBeNull();
+    // The arcade's own picker, opened for the second chair, without the
+    // player already holding the device.
+    expect(screen.getByRole('dialog', { name: 'Choose Player 2' })).toBeInTheDocument();
+    expect(screen.queryByTestId('chess-p2-user-u1')).toBeNull();
+    expect(screen.queryByTestId('chess-board')).toBeNull();
 
-    // Flora takes the other chair from the ticket strip.
-    fireEvent.click(screen.getByTestId('strip-user-u2'));
-    expect(screen.getByTestId('seat-1')).toHaveTextContent('Flora');
-
-    fireEvent.click(screen.getByTestId('start-local'));
+    fireEvent.click(screen.getByTestId('chess-p2-user-u2'));
+    expect(screen.queryByRole('dialog')).toBeNull();
     expect(screen.getByTestId('chess-board')).toBeInTheDocument();
     expect(screen.getByTestId('chess-turn')).toHaveTextContent(/Rio to move/);
 
@@ -659,79 +689,100 @@ describe('<ChessPage> — local flow', () => {
     // and nobody was renamed.
     const roster = JSON.parse(localStorage.getItem('arcade.users.v1') ?? '{}');
     expect(roster.activeId).toBe('u1');
-    expect(roster.users.map((u: { profile: { name: string } }) => u.profile.name)).toEqual([
-      'Rio',
-      'Flora',
-    ]);
+    expect(roster.users.map((u: { profile: { name: string } }) => u.profile.name)).toEqual(['Rio', 'Flora']);
   });
 
-  it('swaps the sides at the table', () => {
+  it('the Player 2 row picks without starting, then Same device plays', () => {
     renderPage();
+    fireEvent.click(screen.getByTestId('chess-count-2'));
+    fireEvent.click(screen.getByTestId('chess-player2'));
+    fireEvent.click(screen.getByTestId('chess-p2-user-u2'));
+
+    // Still the 2-player screen, with the medal and the name in the row, and
+    // the keyboard back on it.
+    expect(screen.queryByTestId('chess-board')).toBeNull();
+    expect(screen.getByTestId('chess-player2')).toHaveTextContent(/Player 2\s*F\s*Flora/);
+    expect(screen.getByTestId('chess-player2')).toHaveFocus();
+
     fireEvent.click(screen.getByTestId('mode-local'));
-    fireEvent.click(screen.getByTestId('strip-user-u2'));
-    expect(screen.getByTestId('seat-0')).toHaveTextContent('Rio');
-
-    // One tap trades the chairs — no clearing both and re-seating.
-    fireEvent.click(screen.getByTestId('chess-swap-sides'));
-    expect(screen.getByTestId('seat-0')).toHaveTextContent('Flora');
-    expect(screen.getByTestId('seat-1')).toHaveTextContent('Rio');
-
-    fireEvent.click(screen.getByTestId('start-local'));
+    expect(screen.getByTestId('chess-turn')).toHaveTextContent(/Rio to move/);
+    fireEvent.click(screen.getByTestId('sq-e2'));
+    fireEvent.click(screen.getByTestId('sq-e4'));
     expect(screen.getByTestId('chess-turn')).toHaveTextContent(/Flora to move/);
   });
 
-  it('next visit opens with the same chairs', () => {
+  it('a new name in the picker makes a profile for chair two without signing it in', () => {
+    renderPage();
+    choose(2, 'mode-local');
+    fireEvent.change(screen.getByTestId('chess-p2-name'), { target: { value: 'Kai' } });
+    fireEvent.click(screen.getByTestId('chess-p2-create'));
+
+    expect(screen.getByTestId('chess-turn')).toHaveTextContent(/Rio to move/);
+    fireEvent.click(screen.getByTestId('sq-e2'));
+    fireEvent.click(screen.getByTestId('sq-e4'));
+    expect(screen.getByTestId('chess-turn')).toHaveTextContent(/Kai to move/);
+    const roster = getUsersSnapshot();
+    expect(roster.activeId).toBe('u1');
+    expect(roster.users.map((u) => u.profile.name)).toEqual(['Rio', 'Flora', 'Kai']);
+  });
+
+  it('the Player 2 picker closes on Escape, and nothing starts', () => {
+    renderPage();
+    choose(2, 'mode-local');
+    expect(screen.getByTestId('chess-p2-picker')).toBeInTheDocument();
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(screen.queryByTestId('chess-p2-picker')).toBeNull();
+    expect(screen.queryByTestId('chess-board')).toBeNull();
+    expect(screen.getByTestId('chess-player2')).toHaveFocus();
+  });
+
+  it('next visit opens with the same Player 2, and Same device plays straight away', () => {
     const first = renderPage();
-    fireEvent.click(screen.getByTestId('mode-local'));
-    fireEvent.click(screen.getByTestId('strip-user-u2'));
-    fireEvent.click(screen.getByTestId('start-local'));
+    startLocal();
     first.unmount();
 
     // Same browser, next visit: the lineup the game started with is remembered.
     renderPage();
+    fireEvent.click(screen.getByTestId('chess-count-2'));
+    expect(screen.getByTestId('chess-player2')).toHaveTextContent('Flora');
     fireEvent.click(screen.getByTestId('mode-local'));
-    expect(screen.getByTestId('seat-0')).toHaveTextContent('Rio');
-    expect(screen.getByTestId('seat-1')).toHaveTextContent('Flora');
+    expect(screen.queryByTestId('chess-p2-picker')).toBeNull();
+    expect(screen.getByTestId('chess-board')).toBeInTheDocument();
   });
 
   it('free play owns the whole window, and gives it back on exit', () => {
     renderPage();
     expect(document.querySelector('.chess-immersive')).toBeNull();
-    fireEvent.click(screen.getByTestId('mode-free'));
+    goFree();
     expect(document.querySelector('.chess-immersive')).not.toBeNull();
     fireEvent.click(screen.getByTestId('fp-menu'));
     fireEvent.click(screen.getByTestId('fp-end'));
     expect(document.querySelector('.chess-immersive')).toBeNull();
   });
 
-  it('a picker left half-filled and abandoned changes nothing for next time', () => {
+  it('a Player 2 picked and abandoned changes nothing for next time', () => {
     renderPage();
-    fireEvent.click(screen.getByTestId('mode-local'));
-    fireEvent.click(screen.getByTestId('strip-user-u2'));
-    expect(screen.getByTestId('seat-1')).toHaveTextContent('Flora');
+    fireEvent.click(screen.getByTestId('chess-count-2'));
+    fireEvent.click(screen.getByTestId('chess-player2'));
+    fireEvent.click(screen.getByTestId('chess-p2-user-u2'));
+    expect(screen.getByTestId('chess-player2')).toHaveTextContent('Flora');
 
-    // Walking back out of the picker without starting: nothing was played, so
-    // nothing is remembered — the next visit is as blank as this one was.
-    fireEvent.click(screen.getByRole('button', { name: /←\s*Back/ }));
-    expect(screen.getByTestId('mode-local')).toBeInTheDocument();
+    // Back to the count screen without starting: nothing was played, so
+    // nothing is remembered.
+    fireEvent.click(screen.getByTestId('chess-lobby-back'));
+    expect(screen.getByTestId('chess-count-2')).toBeInTheDocument();
     expect(localStorage.getItem(LINEUP_KEY)).toBeNull();
   });
 
-  it('swapping the sides before the game is what the next visit opens with', () => {
-    const first = renderPage();
-    fireEvent.click(screen.getByTestId('mode-local'));
-    fireEvent.click(screen.getByTestId('strip-user-u2'));
-    fireEvent.click(screen.getByTestId('chess-swap-sides'));
-    fireEvent.click(screen.getByTestId('start-local'));
-    expect(screen.getByTestId('chess-turn')).toHaveTextContent(/Flora to move/);
-    first.unmount();
-
-    // The chairs the game actually started with — swapped — are the ones the
-    // table opens with next time, White and Black the same way round.
+  it('the player holding the device is White; the remembered lineup only fills Player 2', () => {
+    // Last time Flora played White against Rio; Rio holds the device now.
+    setLineup('chess', [{ userId: 'u2' }, { userId: 'u1' }]);
     renderPage();
+    fireEvent.click(screen.getByTestId('chess-count-2'));
+    expect(screen.getByTestId('chess-player2')).toHaveTextContent('Flora');
     fireEvent.click(screen.getByTestId('mode-local'));
-    expect(screen.getByTestId('seat-0')).toHaveTextContent('Flora');
-    expect(screen.getByTestId('seat-1')).toHaveTextContent('Rio');
+    expect(screen.getByTestId('chess-turn')).toHaveTextContent(/Rio to move/);
+    expect(JSON.parse(localStorage.getItem(LINEUP_KEY) ?? '{}').chess).toEqual([{ userId: 'u1' }, { userId: 'u2' }]);
   });
 });
 
@@ -752,20 +803,17 @@ describe('<ChessPage> — results land on the tickets that sat down', () => {
     localStorage.setItem('chess:local:v1', JSON.stringify(save));
   };
 
-  it("same device: checkmate is a win for the winner's ticket and a loss for the other — whoever is signed in", () => {
-    // Kai holds the device; Rio and Flora are the ones at the board.
+  it("same device: checkmate is a win for the winner's ticket and a loss for the other — nobody else's", () => {
+    // Rio holds the device and picks Flora for Player 2; Kai is on the roster
+    // but not at the board.
     setUsersState(
       setActiveUser(
         addUser(addUser(addUser(emptyUsersState(), 'u1', 'Rio'), 'u2', 'Flora'), 'u3', 'Kai'),
-        'u3',
+        'u1',
       ),
     );
-    setLineup('chess', [{ userId: 'u1' }, { userId: 'u2' }]);
     renderPage();
-    fireEvent.click(screen.getByTestId('mode-local'));
-    expect(screen.getByTestId('seat-0')).toHaveTextContent('Rio');
-    expect(screen.getByTestId('seat-1')).toHaveTextContent('Flora');
-    fireEvent.click(screen.getByTestId('start-local'));
+    startLocal();
 
     for (const [from, to] of FOOLS_MATE) tap(from, to);
     expect(screen.getByTestId('chess-result-headline')).toHaveTextContent('Flora wins!');
@@ -781,7 +829,7 @@ describe('<ChessPage> — results land on the tickets that sat down', () => {
     expect(rio.history).toHaveLength(1);
     expect(rio.history[0]).toMatchObject({ game: 'chess', opponent: 'Flora', result: 'loss' });
 
-    // Kai only held the device: no row, no points.
+    // Kai was never at the board: no row, no points.
     expect(profileOf('u3').history).toHaveLength(0);
     expect(profileOf('u3').points).toBe(0);
   });
@@ -797,24 +845,30 @@ describe('<ChessPage> — results land on the tickets that sat down', () => {
   });
 
   it('same device: an empty chair records nothing — the ticket across the board still gets its row', () => {
+    // Free play promotes its board with whoever is at the table; with no
+    // Player 2 picked yet, Black's chair is empty.
     renderPage();
-    fireEvent.click(screen.getByTestId('mode-local'));
-    expect(screen.getByTestId('seat-1')).toHaveTextContent(/tap a ticket/i);
-    fireEvent.click(screen.getByTestId('start-local'));
-    for (const [from, to] of FOOLS_MATE) tap(from, to);
-    expect(screen.getByTestId('chess-result-headline')).toHaveTextContent('Black wins!');
+    goFree();
+    for (const [piece, square] of [['w-k', 'b6'], ['b-k', 'a8'], ['w-q', 'h7']]) {
+      fireEvent.click(screen.getByTestId(`fp-tray-${piece}`));
+      fireEvent.click(screen.getByTestId(`fp-sq-${square}`));
+      fireEvent.click(screen.getByTestId(`fp-tray-${piece}`));
+    }
+    fireEvent.click(screen.getByTestId('fp-start-game'));
+    tap('h7', 'b7'); // Qb7#
+    expect(screen.getByTestId('chess-result-headline')).toHaveTextContent('Rio wins!');
 
     const rio = profileOf('u1');
-    expect(rio.losses).toBe(1);
-    expect(rio.history[0]).toMatchObject({ opponent: 'Black', result: 'loss' });
-    // Nobody won a ticket's worth of points: Flora was never at the table.
+    expect(rio.wins).toBe(1);
+    expect(rio.history[0]).toMatchObject({ opponent: 'Black', result: 'win' });
+    // Flora was never at the table.
     expect(profileOf('u2').history).toHaveLength(0);
-    expect(getUsersSnapshot().users.reduce((n, u) => n + u.profile.wins, 0)).toBe(0);
+    expect(getUsersSnapshot().users.reduce((n, u) => n + u.profile.losses, 0)).toBe(0);
   });
 
   it('online: the result lands on the ticket that sat down, even after someone else signs in mid-game', () => {
     renderPage();
-    fireEvent.click(screen.getByTestId('mode-online'));
+    goOnline();
     fireEvent.click(screen.getByTestId('chess-create'));
     const { code } = sat.calls[0] as { code: string };
     act(() => net.handlers.onMessage({ t: 'hello', v: 1, side: 'guest', name: 'Kai' }));
@@ -853,7 +907,7 @@ describe('<ChessPage> — results land on the tickets that sat down', () => {
 
   it('online: the mate is recorded once — the reopened link replaying the finished log adds no second row', () => {
     renderPage();
-    fireEvent.click(screen.getByTestId('mode-online'));
+    goOnline();
     fireEvent.click(screen.getByTestId('chess-create'));
     act(() => net.handlers.onMessage({ t: 'hello', v: 1, side: 'guest', name: 'Kai' }));
     tap('f2', 'f3');
@@ -882,7 +936,7 @@ describe('<ChessPage> — results land on the tickets that sat down', () => {
   it('host in a party: the mate closes the table, so a friend who reloads is never sat down at a finished game', () => {
     mockParty.value = fakePartyWithKai('host');
     renderPage();
-    fireEvent.click(screen.getByTestId('mode-online'));
+    goOnline();
     fireEvent.click(screen.getByTestId('chess-party-play'));
     act(() => net.handlers.onMessage({ t: 'hello', v: 1, side: 'guest', name: 'Kai' }));
     expect(mockParty.value.closeTable).not.toHaveBeenCalled();
@@ -898,7 +952,7 @@ describe('<ChessPage> — results land on the tickets that sat down', () => {
   it('a game promoted from free play ends like any other — both chairs get their rows', () => {
     setLineup('chess', [{ userId: 'u1' }, { userId: 'u2' }]);
     renderPage();
-    fireEvent.click(screen.getByTestId('mode-free'));
+    goFree();
     // Kb6 + Qh7 against a lone Ka8, one move from mate. Tray pieces stamp,
     // so each is tapped again to put the stamp down before the next.
     for (const [piece, square] of [['w-k', 'b6'], ['b-k', 'a8'], ['w-q', 'h7']]) {
@@ -922,8 +976,7 @@ describe('<ChessPage> — results land on the tickets that sat down', () => {
   it('same device: playing again after the mate records a second pair of rows — the chairs keep their tickets', () => {
     setLineup('chess', [{ userId: 'u1' }, { userId: 'u2' }]);
     renderPage();
-    fireEvent.click(screen.getByTestId('mode-local'));
-    fireEvent.click(screen.getByTestId('start-local'));
+    startLocal();
     for (const [from, to] of FOOLS_MATE) tap(from, to);
     expect(screen.getByTestId('chess-result-headline')).toHaveTextContent('Flora wins!');
 

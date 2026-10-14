@@ -10,10 +10,11 @@ import { pointsForResult } from '@shared/profile/profile';
 import { recordResultFor } from '@shared/profile/results';
 import { generateCode, normalizeCode } from '@shared/net/peer';
 import { PlayingAs } from '@shared/profile/PlayingAs';
-import { SeatPicker } from '@shared/profile/SeatPicker';
+import { SeatPlayerPicker, type PickedPlayer } from '@shared/profile/SeatPlayerPicker';
 import { useSeats } from '@shared/profile/useSeats';
-import { seatName, swapSeats, type Seat } from '@shared/profile/seats';
+import { EMPTY_SEAT, seatName, type Seat } from '@shared/profile/seats';
 import { ChessBoard } from './ChessBoard';
+import { CountCards, LobbyRow, LobbyTop, PlayerTwoRow, WayCard, type PlayerCount } from './ChessLobby';
 import { ChessResult } from './ChessResult';
 import { ChessLogModal, CapturedTray } from './ChessLogModal';
 import { FreePlay } from './FreePlay';
@@ -27,14 +28,28 @@ type BoardView = 'flat' | '3d';
 import { ConnectionBadge } from '@shared/ui/ConnectionBadge';
 import { FullscreenButton } from '@shared/ui/FullscreenButton';
 import { useDismissOnEscape } from '@shared/ui/useDismissOnEscape';
-import { CloseIcon, GridIcon, ListIcon, ResumeIcon, ShuffleIcon, TargetIcon } from '@shared/ui/icons';
+import { CloseIcon, GridIcon, ListIcon, PartyIcon, TargetIcon } from '@shared/ui/icons';
 import { loadLocalChessGame, loadResumableChessGame } from '../storage/chessPersistence';
 import { customStart, winnerOf, status as statusOf } from '@games/chess/domain/rules';
 import { analyzeGame, tallyCaptures } from '@games/chess/domain/analysis';
 import type { FinishInfo } from '@games/chess/domain/session';
 import type { Color, GameState, PieceType, Ply, Status } from '@games/chess/domain/types';
 
-type Setup = 'pick' | 'local' | 'online' | 'free';
+/**
+ * The lobby's steps: the count screen ('pick'), the ways to play for 1 or 2
+ * players, then the online lobby or the free-play sandbox. Same device has no
+ * step of its own: its card starts the game.
+ */
+type Setup = 'pick' | 'one' | 'two' | 'online' | 'free';
+
+/** The ways to play, as the cards name them. */
+const WAYS = {
+  local: { label: 'Same device', line: 'Pass the device after each move.', testId: 'mode-local' },
+  online: { label: 'Play together', line: 'Share one code and play on two devices.', testId: 'mode-online' },
+  free: { label: 'Free play', line: 'Move any piece anywhere and set up any board.', testId: 'mode-free' },
+} as const;
+
+const WAY_ICON = 120;
 
 /** The registry id — the seats, the profile's history and the party's table all key on it. */
 const GAME_ID = 'chess';
@@ -70,6 +85,15 @@ function asColor(side: string | undefined): Color | undefined {
   return side === 'w' || side === 'b' ? side : undefined;
 }
 
+/**
+ * Who sat across the board last time: the remembered lineup's other ticket,
+ * whichever chair it was in, never the player holding the device.
+ */
+function rememberedOpponent(seats: Seat[], meId: string | null): string | null {
+  const other = [seats[1], seats[0]].find((s) => s?.kind === 'ticket' && s.userId !== meId);
+  return other?.kind === 'ticket' ? other.userId : null;
+}
+
 /** The ticket in a chair, for the result — a bot or an empty chair credits nobody. */
 function ticketOf(seat: Seat): string | null {
   return seat.kind === 'ticket' ? seat.userId : null;
@@ -80,17 +104,32 @@ export function ChessPage() {
   const [params] = useSearchParams();
   const profile = useProfile();
   const [setup, setSetup] = useState<Setup>('pick');
+  // The count picked on the first screen, shown as a coin on the steps after.
+  const [count, setCount] = useState<PlayerCount | null>(null);
+  // The online lobby opened from Join with a code (or a shared link) shows
+  // only the code field; from Play together it shows both doors.
+  const [joinOnly, setJoinOnly] = useState(false);
   const [finish, setFinish] = useState<ResultSummary | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
   useDismissOnEscape(shareOpen, () => setShareOpen(false));
   const [copied, setCopied] = useState(false);
   const [joinInput, setJoinInput] = useState(normalizeCode(params.get('g') ?? ''));
-  // The two same-device chairs: tickets off the roster, seeded from the lineup
-  // this device played last (or the signed-in ticket on chair one). Sitting
-  // down never signs anybody in or renames them.
+  // The two same-device chairs. Chair one (White) is whoever is playing, the
+  // signed-in ticket. Chair two (Black) is picked in the arcade's player
+  // picker, opened for that chair, and starts on whoever sat there last time.
+  // Seating someone never signs them in or renames them.
   const table = useSeats(GAME_ID, 2);
-  const whiteName = seatName(table.seats[0], table.users) || 'White';
-  const blackName = seatName(table.seats[1], table.users) || 'Black';
+  const meId = profile.userId;
+  const [playerTwoId, setPlayerTwoId] = useState<string | null>(null);
+  const playerTwo = playerTwoId && playerTwoId !== meId ? playerTwoId : rememberedOpponent(table.seats, meId);
+  const chairsWith = (two: string | null): Seat[] => [
+    meId ? { kind: 'ticket', userId: meId } : EMPTY_SEAT,
+    two ? { kind: 'ticket', userId: two } : EMPTY_SEAT,
+  ];
+  // The picker for chair two, and whether picking someone also starts the
+  // game (it does when Same device was tapped with the chair still empty).
+  const [pickTwo, setPickTwo] = useState<null | 'choose' | 'start'>(null);
+  const playerTwoRef = useRef<HTMLButtonElement>(null);
   const [logOpen, setLogOpen] = useState(false);
   // The ☰ options menu: board view, world, move log. Undo stays outside, in
   // the title bar — taking back a move shouldn't cost two taps.
@@ -178,13 +217,48 @@ export function ChessPage() {
    * tickets to credit — remembering the lineup for next time. Called from
    * click handlers only, so it needn't be memoised.
    */
-  const startHotseat = (start?: GameState) => {
-    table.remember();
+  // Chair two's name travels with the pick: a profile made in the picker a
+  // moment ago is not in this render's roster yet.
+  const startHotseat = (
+    start?: GameState,
+    two: PickedPlayer | null = playerTwo
+      ? { userId: playerTwo, name: seatName({ kind: 'ticket', userId: playerTwo }, table.users) }
+      : null,
+  ) => {
+    const chairs = chairsWith(two?.userId ?? null);
+    table.remember(chairs);
     cx.startLocal(
-      { name: whiteName, userId: ticketOf(table.seats[0]) },
-      { name: blackName, userId: ticketOf(table.seats[1]) },
+      { name: seatName(chairs[0], table.users) || 'White', userId: ticketOf(chairs[0]) },
+      { name: two?.name || 'Black', userId: two?.userId ?? null },
       start,
     );
+  };
+  /** Same device: straight into the game when chair two is filled, else pick first. */
+  const playSameDevice = () => {
+    if (playerTwo) startHotseat();
+    else setPickTwo('start');
+  };
+  const closePickTwo = () => {
+    setPickTwo(null);
+    playerTwoRef.current?.focus();
+  };
+  const onPickTwo = (two: PickedPlayer) => {
+    const startNow = pickTwo === 'start';
+    setPlayerTwoId(two.userId);
+    setPickTwo(null);
+    if (startNow) startHotseat(undefined, two);
+    else playerTwoRef.current?.focus();
+  };
+  /** Back to the count screen, from any later step. */
+  const toCount = () => {
+    setSetup('pick');
+    setCount(null);
+    setJoinOnly(false);
+  };
+  const openOnline = (from: PlayerCount | null, onlyJoin: boolean) => {
+    setCount(from);
+    setJoinOnly(onlyJoin);
+    setSetup('online');
   };
   // A guest in a party stands at the one door: it knocks while the online
   // lobby is up with no table open, and sits down the moment the host opens
@@ -214,6 +288,7 @@ export function ChessPage() {
       setSetup('online');
       cx.resumeGame(resumeCode);
     } else if (joinCode) {
+      setJoinOnly(true);
       setSetup('online');
     }
     return () => {
@@ -283,10 +358,23 @@ export function ChessPage() {
   // The board owns the whole window in 3D play and in free play (flat or 3D):
   // the title bar, trays, hint and actions float over its edges.
   const immersive = (cx.phase === 'play' && view === '3d') || (!inGame && setup === 'free');
+  // The lobby steps wear their own title bar: back, the count coin, the sign.
+  const inLobby = !inGame && setup !== 'free';
+  const playerTwoIndex = playerTwo ? table.users.findIndex((u) => u.id === playerTwo) : -1;
+  const playerTwoName = playerTwoIndex >= 0 ? table.users[playerTwoIndex].profile.name : null;
 
   return (
     <ChessThemeContext.Provider value={{ theme, setTheme }}>
-    <div className={`app chess-theme-${theme}${immersive ? ' chess-immersive' : ''}`}>
+    <div className={`app chess-theme-${theme}${immersive ? ' chess-immersive' : ''}${inLobby ? ' chess-lobby' : ''}`}>
+      {inLobby && (
+        <LobbyTop
+          count={setup === 'pick' ? null : count}
+          backLabel={setup === 'pick' ? 'Back to the arcade' : 'Back to player count'}
+          onBack={setup === 'pick' ? goMenu : toCount}
+          badge={cx.side ? { status: cx.status, detail: cx.statusDetail } : undefined}
+        />
+      )}
+      {!inLobby && (
       <div className="topbar">
         <button className="back-link" onClick={goMenu} data-testid="chess-back">‹ Menu</button>
         <h1>Chess</h1>
@@ -339,6 +427,7 @@ export function ChessPage() {
         )}
         <FullscreenButton />
       </div>
+      )}
 
       {/* ── Invite modal (online host waiting) ── */}
       {shareOpen && (
@@ -382,116 +471,105 @@ export function ChessPage() {
         </div>
       )}
 
-      {/* ── Setup: mode picker ── */}
-      {!inGame && setup === 'pick' && (
-        <div className="narrow-col stack">
-          <div className="panel">
-            <h2>How do you want to play?</h2>
-            <p className="subtle">Two players, one board.</p>
-          </div>
-          {resumableLocal && (
-            <button className="card violet" onClick={() => cx.resumeLocal()} data-testid="chess-resume-local">
-              <div className="icon"><ResumeIcon size={26} /></div>
-              <div className="body">
-                <div className="title">Resume — {resumableLocal.whiteName} vs {resumableLocal.blackName}</div>
-                <div className="sub">
-                  Same device · {describeMoves(resumableLocal.log.length)}
-                  {resumableLocal.start ? ' · custom setup' : ''}
-                </div>
-              </div>
-              <div className="chev" aria-hidden="true">›</div>
-            </button>
-          )}
-          {resumableChess && (
-            <button
-              className="card violet"
-              onClick={() => {
-                setSetup('online');
-                cx.resumeGame(resumableChess.code);
-              }}
-              data-testid="chess-resume"
-            >
-              <div className="icon"><ResumeIcon size={26} /></div>
-              <div className="body">
-                <div className="title">Resume game {resumableChess.code}</div>
-                <div className="sub">vs {resumableChess.oppName || 'opponent'} — still in progress.</div>
-              </div>
-              <div className="chev" aria-hidden="true">›</div>
-            </button>
-          )}
-          <button className="card" onClick={() => setSetup('local')} data-testid="mode-local">
-            <div className="icon"><TargetIcon size={26} /></div>
-            <div className="body">
-              <div className="title">Same device</div>
-              <div className="sub">Pass-and-play on one screen. Take turns, no code needed.</div>
-            </div>
-            <div className="chev" aria-hidden="true">›</div>
-          </button>
-          <button className="card violet" onClick={() => setSetup('online')} data-testid="mode-online">
-            <div className="icon"><TargetIcon size={26} /></div>
-            <div className="body">
-              <div className="title">Online <span className="tag">2-Device</span></div>
-              <div className="sub">Two devices, one code — just like Ship Battle.</div>
-            </div>
-            <div className="chev" aria-hidden="true">›</div>
-          </button>
-          <button className="card" onClick={() => setSetup('free')} data-testid="mode-free">
-            <div className="icon"><GridIcon size={26} /></div>
-            <div className="body">
-              <div className="title">Free play</div>
-              <div className="sub">No rules — drag pieces anywhere, set up anything. Just play.</div>
-            </div>
-            <div className="chev" aria-hidden="true">›</div>
-          </button>
+      {/* ── The lobby: who is playing, then the count, then the ways ── */}
+      {inLobby && (
+        <div className="chess-who">
+          {/* Who is playing is already known: the arcade's own line, with
+              its own picker behind Switch player. */}
+          <PlayingAs />
         </div>
+      )}
+
+      {/* ── Count screen: 1 player or 2 players ── */}
+      {!inGame && setup === 'pick' && (
+        <div className="chess-lobby-body">
+          <CountCards
+            onPick={(n) => {
+              setCount(n);
+              setSetup(n === 1 ? 'one' : 'two');
+            }}
+          />
+          <div className="chess-rows">
+            {resumableLocal && (
+              <LobbyRow
+                kind="resume"
+                title={`Resume ${resumableLocal.whiteName} vs ${resumableLocal.blackName}`}
+                sub={`Same device · ${describeMoves(resumableLocal.log.length)}${resumableLocal.start ? ' · custom setup' : ''}`}
+                testId="chess-resume-local"
+                onClick={() => cx.resumeLocal()}
+              />
+            )}
+            {resumableChess && (
+              <LobbyRow
+                kind="resume"
+                title={`Resume game ${resumableChess.code}`}
+                sub={`vs ${resumableChess.oppName || 'opponent'}`}
+                testId="chess-resume"
+                onClick={() => {
+                  openOnline(null, false);
+                  cx.resumeGame(resumableChess.code);
+                }}
+              />
+            )}
+            <LobbyRow kind="join" title="Join with a code" testId="chess-join-row" onClick={() => openOnline(null, true)} />
+          </div>
+        </div>
+      )}
+
+      {/* ── 1 player: Play together, Free play (a third card fits here) ── */}
+      {!inGame && setup === 'one' && (
+        <div className="chess-lobby-body">
+          <div className="chess-ways" data-cards="2">
+            <WayCard {...WAYS.online} icon={<PartyIcon size={WAY_ICON} />} onClick={() => openOnline(1, false)} />
+            <WayCard {...WAYS.free} icon={<GridIcon size={WAY_ICON} />} onClick={() => setSetup('free')} />
+          </div>
+        </div>
+      )}
+
+      {/* ── 2 players: Same device (with its second chair), Play together ── */}
+      {!inGame && setup === 'two' && (
+        <div className="chess-lobby-body">
+          <div className="chess-ways" data-cards="2">
+            <div className="chess-way-col">
+              <WayCard {...WAYS.local} icon={<TargetIcon size={WAY_ICON} />} onClick={playSameDevice} />
+              <PlayerTwoRow
+                name={playerTwoName}
+                rosterIndex={playerTwoIndex}
+                buttonRef={playerTwoRef}
+                onOpen={() => setPickTwo('choose')}
+              />
+            </div>
+            <div className="chess-way-col">
+              <WayCard {...WAYS.online} icon={<PartyIcon size={WAY_ICON} />} onClick={() => openOnline(2, false)} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {pickTwo && (
+        <SeatPlayerPicker
+          title="Player 2"
+          hideIds={meId ? [meId] : undefined}
+          testIdPrefix="chess-p2"
+          onPick={onPickTwo}
+          onClose={closePickTwo}
+        />
       )}
 
       {/* ── Free play sandbox — can promote its setup into a real game ── */}
       {!inGame && setup === 'free' && (
         <FreePlay
-          onExit={() => setSetup('pick')}
+          onExit={() => setSetup('one')}
           // A promoted free-play board is a game starting like any other.
           onStartGame={(board) => startHotseat(customStart(board))}
         />
       )}
 
-      {/* ── Setup: local (hotseat) — two chairs, filled from the roster ── */}
-      {!inGame && setup === 'local' && (
-        <div className="narrow-col stack">
-          <div className="panel stack">
-            <h2>Same-device game</h2>
-            {/* Chairs hold tickets, not typed-in names: tapping someone into
-                a chair never signs them in or renames whoever is holding the
-                device. Who sits where is remembered once the game starts. */}
-            <SeatPicker
-              seats={table.seats}
-              onChange={table.setSeats}
-              rowLabel={(i) => (i === 0 ? 'White' : 'Black')}
-            />
-            <button
-              className="btn btn-ghost chess-swap-btn"
-              onClick={() => table.setSeats(swapSeats(table.seats, 0, 1))}
-              data-testid="chess-swap-sides"
-            >
-              <ShuffleIcon size={18} /> Swap sides
-            </button>
-            <button
-              className="btn btn-primary btn-lg btn-block"
-              onClick={() => startHotseat()}
-              data-testid="start-local"
-            >
-              Start game
-            </button>
-            <button className="btn btn-ghost btn-block" onClick={() => setSetup('pick')}>← Back</button>
-          </div>
-        </div>
-      )}
-
       {/* ── Setup: online lobby — the party is the table ── */}
       {!inGame && setup === 'online' && (
         <div className="narrow-col stack">
-          {/* Your ticket is your name online — your opponent sees it. */}
-          <PlayingAs />
+          {/* Your ticket is your name online (the Playing-as line above);
+              your opponent sees it. */}
           <div className="panel stack">
             {lobby === 'reconnecting' && (
               <p className="subtle center" data-testid="chess-party-reconnecting">
@@ -552,17 +630,23 @@ export function ChessPage() {
 
             {lobby === 'doors' && (
               <>
-                <h2>Start a game</h2>
-                <button
-                  className="btn btn-primary btn-lg btn-block"
-                  onClick={() => sitDown({ role: 'host', code: generateCode() })}
-                  data-testid="chess-create"
-                >
-                  Create a game
-                </button>
-                <p className="subtle center">You’ll get a code to share. You play White.</p>
+                {joinOnly ? (
+                  <h2>Join with a code</h2>
+                ) : (
+                  <>
+                    <h2>Start a game</h2>
+                    <button
+                      className="btn btn-primary btn-lg btn-block"
+                      onClick={() => sitDown({ role: 'host', code: generateCode() })}
+                      data-testid="chess-create"
+                    >
+                      Create a game
+                    </button>
+                    <p className="subtle center">You’ll get a code to share. You play White.</p>
+                  </>
+                )}
                 <div className="field">
-                  <label htmlFor="jcode">…or join with a 4-character code</label>
+                  <label htmlFor="jcode">{joinOnly ? '4-character code' : '…or join with a 4-character code'}</label>
                   <input
                     id="jcode"
                     className="code-input"
@@ -586,7 +670,7 @@ export function ChessPage() {
                 </button>
               </>
             )}
-            <button className="btn btn-ghost btn-block" onClick={() => setSetup('pick')}>← Back</button>
+            <button className="btn btn-ghost btn-block" onClick={toCount}>← Back</button>
           </div>
         </div>
       )}

@@ -115,9 +115,10 @@ function signInAs(name: string) {
   });
 }
 
-/** Sign in, then walk the mode picker into the online lobby. */
+/** Sign in, then walk the count screen (2 players) into the online lobby. */
 function toOnlineLobby(app: Client, name: string) {
   signInAs(name);
+  fireEvent.click(app.getByTestId('chess-count-2'));
   fireEvent.click(app.getByTestId('mode-online'));
   // The lobby names you from your ticket instead of asking: the name alone,
   // next to the one verb that opens the picker.

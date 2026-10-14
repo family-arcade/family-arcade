@@ -118,9 +118,9 @@ export interface City {
  */
 const MAP_WONDERS: Record<MapId, PropKind[]> = {
   town: ['leaning', 'clocktower', 'stonecircle', 'moai'],
-  city: ['leaning', 'clocktower', 'stonecircle', 'moai', 'buddha', 'opera', 'onion', 'reichstag'],
-  mega: ['megaspire', 'irontower', 'pyramid', 'pearlpalace', 'buddha', 'reichstag', 'opera', 'onion', 'clocktower', 'leaning', 'stonecircle', 'moai'],
-  region: ['megaspire', 'irontower', 'pyramid', 'pearlpalace', 'buddha', 'reichstag', 'opera', 'onion', 'clocktower', 'leaning', 'stonecircle', 'moai'],
+  city: ['leaning', 'clocktower', 'stonecircle', 'moai', 'buddha', 'opera', 'reichstag'],
+  mega: ['megaspire', 'irontower', 'pyramid', 'pearlpalace', 'buddha', 'reichstag', 'opera', 'clocktower', 'leaning', 'stonecircle', 'moai'],
+  region: ['megaspire', 'irontower', 'pyramid', 'pearlpalace', 'buddha', 'reichstag', 'opera', 'clocktower', 'leaning', 'stonecircle', 'moai'],
 };
 /**
  * Wonders that stand out in the open on a map with countryside, a lure out

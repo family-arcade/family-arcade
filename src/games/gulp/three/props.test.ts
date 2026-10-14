@@ -66,7 +66,6 @@ const BUDGET: Partial<Record<PropKind, number>> = {
   buddha: 6000,
   reichstag: 6000,
   opera: 6000,
-  onion: 6000,
   clocktower: 6000,
   leaning: 6000,
   stonecircle: 6000,

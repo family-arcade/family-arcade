@@ -119,7 +119,6 @@ export type PropKind =
   | 'buddha'
   | 'reichstag'
   | 'opera'
-  | 'onion'
   | 'pearlpalace'
   | 'stonecircle'
   | 'moai';
@@ -249,7 +248,6 @@ const TABLE: Record<PropKind, KindRow> = {
   buddha: { tier: 8, w: 24.0, d: 24.0, h: 34.0, variants: 1, wonder: { name: 'the Big Buddha', bonus: 5000 } },
   reichstag: { tier: 8, w: 30.0, d: 22.0, h: 26.0, variants: 1, wonder: { name: 'the Reichstag', bonus: 4500 } },
   opera: { tier: 8, w: 27.0, d: 20.0, h: 16.0, variants: 1, wonder: { name: 'the Sydney Opera House', bonus: 4500 } },
-  onion: { tier: 8, w: 22.0, d: 22.0, h: 30.0, variants: 1, wonder: { name: "St Basil's Cathedral", bonus: 4000 } },
   clocktower: { tier: 7, w: 10.0, d: 10.0, h: 55.0, variants: 1, wonder: { name: 'Big Ben', bonus: 3000 } },
   leaning: { tier: 7, w: 9.0, d: 9.0, h: 32.0, variants: 1, wonder: { name: 'the Leaning Tower of Pisa', bonus: 2500 } },
   stonecircle: { tier: 6, w: 22.0, d: 22.0, h: 6.0, variants: 1, wonder: { name: 'Stonehenge', bonus: 2000 } },

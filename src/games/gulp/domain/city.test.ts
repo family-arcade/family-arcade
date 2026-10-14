@@ -215,8 +215,8 @@ describe('createCity', () => {
     // One entry per wonder: the Easter Island heads are four props but one wonder.
     const wonders = (map: MapId) => new Set(createCity(seededRng(2), map).props.filter((p) => KINDS[p.kind].wonder).map((p) => p.kind));
     expect(wonders('town').size).toBe(5);
-    expect(wonders('city').size).toBe(9);
-    expect(wonders('mega').size).toBe(13);
+    expect(wonders('city').size).toBe(8);
+    expect(wonders('mega').size).toBe(12);
     for (const map of ALL) {
       const city = createCity(seededRng(4), map);
       const liberty = city.props.find((p) => p.kind === 'liberty');

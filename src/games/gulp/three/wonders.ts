@@ -21,7 +21,6 @@ export type WonderKind = Extract<
   | 'buddha'
   | 'reichstag'
   | 'opera'
-  | 'onion'
   | 'clocktower'
   | 'leaning'
   | 'stonecircle'
@@ -96,51 +95,6 @@ function arch(k: Kit, color: number, w: number, h: number, depth: number, u: num
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
   g.computeVertexNormals();
   k.add(g, color, translate(u, y, z));
-}
-
-/** Onion dome shape, as (radius, height) fractions from the neck to the tip. */
-const ONION: Profile = [
-  [0.72, 0],
-  [0.94, 0.12],
-  [1, 0.27],
-  [0.93, 0.43],
-  [0.74, 0.58],
-  [0.48, 0.72],
-  [0.26, 0.84],
-  [0.1, 0.94],
-  [0, 1],
-];
-
-/**
- * Onion dome in two colours whose stripes twist round it as they climb, the
- * swirl that makes the dome palace read at a glance. Radius R, height H, base
- * on (x, y, z).
- */
-function onionDome(k: Kit, colors: Pair, x: number, y: number, z: number, R: number, H: number, stripes = 10, twist = 1.4): void {
-  const lists: [number[], number[]] = [[], []];
-  const at = (r: number, h: number, a: number): V3 => [x + R * r * Math.sin(a), y + H * h, z + R * r * Math.cos(a)];
-  for (let s = 0; s < stripes; s++) {
-    const list = lists[s % 2];
-    for (let j = 0; j < ONION.length - 1; j++) {
-      const [r0, h0] = ONION[j];
-      const [r1, h1] = ONION[j + 1];
-      const a = (s / stripes) * TAU;
-      const b = ((s + 1) / stripes) * TAU;
-      // Seen from outside, the angle grows to the right, so this order winds outward.
-      const p00 = at(r0, h0, a + twist * h0);
-      const p01 = at(r0, h0, b + twist * h0);
-      const p10 = at(r1, h1, a + twist * h1);
-      const p11 = at(r1, h1, b + twist * h1);
-      list.push(...p00, ...p01, ...p11);
-      if (r1 > 0) list.push(...p00, ...p11, ...p10);
-    }
-  }
-  lists.forEach((list, i) => {
-    const g = new THREE.BufferGeometry();
-    g.setAttribute('position', new THREE.Float32BufferAttribute(list, 3));
-    g.computeVertexNormals();
-    k.add(g, colors[i]);
-  });
 }
 
 /** Gold finial: a short rod and a bead, the tip of every dome. */
@@ -949,64 +903,6 @@ const opera: Builder = (k) => {
 };
 
 // ---------------------------------------------------------------------------
-// St Basil's Cathedral
-
-const onion: Builder = (k) => {
-  const brick = 0xdc4b3e;
-  const trim = 0xfff3dc;
-  // Raised red gallery with white arches all round.
-  k.rbox(brick, 18.4, 3.0, 18.4, 3.4, 0.25, 0, 0, 0, { seg: 2 });
-  for (const wall of walls(18.4, 18.4)) {
-    k.within(wall.m, () => {
-      for (const u of [-4.5, -1.5, 1.5, 4.5]) arch(k, trim, 1.8, 2.2, 0.12, u, 0.3);
-      if (wall.side === 'front') k.box(trim, 5.2, 0.8, 2.0, 0, 0, 0.9, undefined, ON_GROUND);
-    });
-  }
-  k.rbox(trim, 18.8, 0.4, 18.8, 3.5, 0.15, 0, 3.0, 0, { seg: 2 });
-  const y0 = 3.4;
-  // Octagonal drum with a white band near the top and a neck for the dome.
-  const drum = (x: number, z: number, r: number, h: number, body: number) => {
-    k.cyl(body, r, r * 1.05, h, 8, x, y0, z);
-    k.cyl(trim, r * 1.08, r * 1.08, 0.45, 8, x, y0 + h * 0.62, z);
-    k.cyl(trim, r * 1.12, r * 1.12, 0.5, 8, x, y0 + h - 0.5, z);
-    k.cyl(body, r * 0.75, r * 0.8, 0.8, 8, x, y0 + h, z);
-    return y0 + h + 0.8;
-  };
-  // Central tent spire, striped, with a small gold onion on top.
-  const cy = drum(0, -0.5, 2.7, 10.8, 0xf2a23a);
-  const tent = 9.2;
-  for (let i = 0; i < 8; i++) {
-    k.cyl(i % 2 ? 0x46b97a : trim, 0.55, 2.3, tent, 1, 0, cy, -0.5, { theta: [(i * TAU) / 8, TAU / 8] });
-  }
-  onionDome(k, [GOLD, 0xffe58a], 0, cy + tent - 0.2, -0.5, 1.0, 2.4, 8, 1.2);
-  finial(k, 0, cy + tent + 2.1, -0.5, 1.2);
-  // Four big towers on the axes and four small ones between, every dome a
-  // different candy swirl.
-  const big: ReadonlyArray<readonly [number, number, number, number, Pair]> = [
-    [0, 6.1, 8.2, brick, [0xe63946, PAL.white]],
-    [6.1, -0.4, 9.2, 0xf0c64a, [0x2f7fe0, PAL.white]],
-    [-6.1, -0.4, 9.0, 0x5cb85c, [0xff8a1f, 0xffd23f]],
-    [0, -6.6, 9.8, brick, [0x3cbf5a, 0xffd23f]],
-  ];
-  for (const [x, z, h, body, c] of big) {
-    const top = drum(x, z, 1.85, h, body);
-    onionDome(k, c, x, top, z, 2.5, 4.7, 10, 1.5);
-    finial(k, x, top + 4.5, z, 1.3);
-  }
-  const small: ReadonlyArray<readonly [number, number, number, Pair]> = [
-    [5.1, 5.1, 6.4, [0xa259ff, PAL.white]],
-    [-5.1, 5.1, 6.0, [0x17c3b2, 0xffe066]],
-    [5.3, -5.6, 7.0, [0xff5d8f, 0xffd23f]],
-    [-5.3, -5.6, 6.8, [0xe63946, 0x3cbf5a]],
-  ];
-  for (const [x, z, h, c] of small) {
-    const top = drum(x, z, 1.2, h, brick);
-    onionDome(k, c, x, top, z, 1.65, 3.2, 8, 1.4);
-    finial(k, x, top + 3.1, z, 0.9);
-  }
-};
-
-// ---------------------------------------------------------------------------
 // The Clock Tower
 
 const clocktower: Builder = (k) => {
@@ -1232,7 +1128,6 @@ export const WONDERS_BUILDERS: Record<WonderKind, Builder> = {
   buddha,
   reichstag,
   opera,
-  onion,
   clocktower,
   leaning,
   stonecircle,

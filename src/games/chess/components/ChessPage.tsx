@@ -94,6 +94,12 @@ function rememberedOpponent(seats: Seat[], meId: string | null): string | null {
   return other?.kind === 'ticket' ? other.userId : null;
 }
 
+/** Whether the player holding the device sat at Black last time. */
+function rememberedBlack(seats: Seat[], meId: string | null): boolean {
+  const black = seats[1];
+  return meId !== null && black?.kind === 'ticket' && black.userId === meId;
+}
+
 /** The ticket in a chair, for the result — a bot or an empty chair credits nobody. */
 function ticketOf(seat: Seat): string | null {
   return seat.kind === 'ticket' ? seat.userId : null;
@@ -114,18 +120,23 @@ export function ChessPage() {
   useDismissOnEscape(shareOpen, () => setShareOpen(false));
   const [copied, setCopied] = useState(false);
   const [joinInput, setJoinInput] = useState(normalizeCode(params.get('g') ?? ''));
-  // The two same-device chairs. Chair one (White) is whoever is playing, the
-  // signed-in ticket. Chair two (Black) is picked in the arcade's player
-  // picker, opened for that chair, and starts on whoever sat there last time.
-  // Seating someone never signs them in or renames them.
+  // The two same-device chairs: whoever is playing, the signed-in ticket, and
+  // Player 2, picked in the arcade's player picker opened for that chair. The
+  // player holding the device plays White unless the sides are swapped. Both
+  // start as they were last time. Seating someone never signs them in or
+  // renames them.
   const table = useSeats(GAME_ID, 2);
   const meId = profile.userId;
   const [playerTwoId, setPlayerTwoId] = useState<string | null>(null);
   const playerTwo = playerTwoId && playerTwoId !== meId ? playerTwoId : rememberedOpponent(table.seats, meId);
-  const chairsWith = (two: string | null): Seat[] => [
-    meId ? { kind: 'ticket', userId: meId } : EMPTY_SEAT,
-    two ? { kind: 'ticket', userId: two } : EMPTY_SEAT,
-  ];
+  const [swapped, setSwapped] = useState<boolean | null>(null);
+  const meBlack = swapped ?? rememberedBlack(table.seats, meId);
+  /** White's chair first, then Black's. */
+  const chairsWith = (two: string | null): Seat[] => {
+    const me: Seat = meId ? { kind: 'ticket', userId: meId } : EMPTY_SEAT;
+    const other: Seat = two ? { kind: 'ticket', userId: two } : EMPTY_SEAT;
+    return meBlack ? [other, me] : [me, other];
+  };
   // The picker for chair two, and whether picking someone also starts the
   // game (it does when Same device was tapped with the chair still empty).
   const [pickTwo, setPickTwo] = useState<null | 'choose' | 'start'>(null);
@@ -217,7 +228,7 @@ export function ChessPage() {
    * tickets to credit — remembering the lineup for next time. Called from
    * click handlers only, so it needn't be memoised.
    */
-  // Chair two's name travels with the pick: a profile made in the picker a
+  // Player 2's name travels with the pick: a profile made in the picker a
   // moment ago is not in this render's roster yet.
   const startHotseat = (
     start?: GameState,
@@ -227,9 +238,13 @@ export function ChessPage() {
   ) => {
     const chairs = chairsWith(two?.userId ?? null);
     table.remember(chairs);
+    const meChair = chairs[meBlack ? 1 : 0];
+    const me = { name: seatName(meChair, table.users), userId: ticketOf(meChair) };
+    const other = { name: two?.name ?? '', userId: two?.userId ?? null };
+    const [white, black] = meBlack ? [other, me] : [me, other];
     cx.startLocal(
-      { name: seatName(chairs[0], table.users) || 'White', userId: ticketOf(chairs[0]) },
-      { name: two?.name || 'Black', userId: two?.userId ?? null },
+      { name: white.name || 'White', userId: white.userId },
+      { name: black.name || 'Black', userId: black.userId },
       start,
     );
   };
@@ -535,8 +550,10 @@ export function ChessPage() {
               <PlayerTwoRow
                 name={playerTwoName}
                 rosterIndex={playerTwoIndex}
+                side={meBlack ? 'w' : 'b'}
                 buttonRef={playerTwoRef}
                 onOpen={() => setPickTwo('choose')}
+                onSwap={() => setSwapped(!meBlack)}
               />
             </div>
             <div className="chess-way-col">

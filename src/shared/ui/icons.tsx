@@ -463,7 +463,7 @@ export const ChevronDownIcon = (p: IconProps) =>
 export const ChevronLeftIcon = (p: IconProps) =>
   svg(<path d="M14.8 5.5 8.3 12l6.5 6.5" />, p);
 
-/** Gulp City — a hole seen from above, with its two googly eyes. */
+/** Gulp Universe — a hole seen from above, with its two googly eyes. */
 export const GulpIcon = (p: IconProps) =>
   svg(
     <>

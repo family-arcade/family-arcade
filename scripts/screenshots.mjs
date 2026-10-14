@@ -507,7 +507,7 @@ const SHOTS = [
       await page.reload();
       await page.getByTestId('chess-count-2').click();
       await page.getByTestId('mode-local').click();
-      await page.getByTestId('chess-p2-user-seed-flora').click();
+      await page.getByTestId('chess-p2-user-seed-flora').click({ position: { x: 40, y: 16 } });
       await page.getByTestId('chess3d').waitFor();
       // Scene, starfield, and the async piece models all need to land.
       await page.waitForTimeout(3500);
@@ -592,7 +592,7 @@ const SHOTS = [
       await chessTheme('galaxy')(page);
       await page.getByTestId('chess-count-2').click();
       await page.getByTestId('chess-player2').click();
-      await page.getByTestId('chess-p2-user-seed-flora').click();
+      await page.getByTestId('chess-p2-user-seed-flora').click({ position: { x: 40, y: 16 } });
       await page.mouse.move(0, 0);
     },
   },

@@ -10,7 +10,8 @@ import type { ReactNode } from 'react';
 import { Medal } from '@shared/profile/Medal';
 import { ConnectionBadge } from '@shared/ui/ConnectionBadge';
 import { FullscreenButton } from '@shared/ui/FullscreenButton';
-import { ChevronLeftIcon, PeopleIcon, PersonIcon, ResumeIcon, StarIcon } from '@shared/ui/icons';
+import { ChevronLeftIcon, PersonIcon, ResumeIcon, ShuffleIcon, StarIcon } from '@shared/ui/icons';
+import { ChessPiece } from './chessPieces';
 
 export type PlayerCount = 1 | 2;
 
@@ -69,6 +70,26 @@ export function LobbyTop({
   );
 }
 
+const BOARD_SIDE = 4;
+
+/** A corner of the board with a king on it, or a king and a queen face to face. */
+function CountBoard({ count }: { count: PlayerCount }) {
+  return (
+    <span className="chess-count-board" data-count={count}>
+      {Array.from({ length: BOARD_SIDE * BOARD_SIDE }, (_, i) => (
+        <span
+          key={i}
+          className={(Math.floor(i / BOARD_SIDE) + i) % 2 === 0 ? 'ccb-sq light' : 'ccb-sq dark'}
+        />
+      ))}
+      <span className="ccb-pieces">
+        <ChessPiece color="w" type="k" size={120} classic />
+        {count === 2 && <ChessPiece color="b" type="q" size={120} classic />}
+      </span>
+    </span>
+  );
+}
+
 /** The count screen's two tall cards. */
 export function CountCards({ onPick }: { onPick: (count: PlayerCount) => void }) {
   return (
@@ -82,8 +103,8 @@ export function CountCards({ onPick }: { onPick: (count: PlayerCount) => void })
           data-testid={`chess-count-${n}`}
         >
           <Coin count={n} />
-          <span className="chess-count-pic">
-            {n === 1 ? <PersonIcon size={150} /> : <PeopleIcon size={150} />}
+          <span className="chess-count-pic" aria-hidden="true">
+            <CountBoard count={n} />
           </span>
           <span className="chess-count-label">{n === 1 ? '1 player' : '2 players'}</span>
         </button>
@@ -122,35 +143,55 @@ export function WayCard({
 export function PlayerTwoRow({
   name,
   rosterIndex,
+  side,
   buttonRef,
   onOpen,
+  onSwap,
 }: {
   name: string | null;
   rosterIndex: number;
+  /** The colour Player 2 plays: Black, unless the sides are swapped. */
+  side: 'w' | 'b';
   buttonRef: React.Ref<HTMLButtonElement>;
   onOpen: () => void;
+  onSwap: () => void;
 }) {
   return (
-    <button
-      ref={buttonRef}
-      type="button"
-      className="chess-p2"
-      onClick={onOpen}
-      data-testid="chess-player2"
-    >
-      <span className="chess-p2-label">Player 2</span>
-      <span className={name ? 'chess-p2-who' : 'chess-p2-who empty'}>
-        {name ? (
-          <Medal name={name} index={rosterIndex} small />
-        ) : (
-          <span className="chess-p2-blank" aria-hidden="true">
-            <PersonIcon size={18} />
-          </span>
-        )}
-        <span className="chess-p2-name">{name ?? 'Choose'}</span>
-      </span>
-      <span className="chess-p2-chev" aria-hidden="true">›</span>
-    </button>
+    <div className="chess-p2-line">
+      <button
+        ref={buttonRef}
+        type="button"
+        className="chess-p2"
+        onClick={onOpen}
+        data-testid="chess-player2"
+      >
+        <span className="chess-p2-label">Player 2</span>
+        <span className={name ? 'chess-p2-who' : 'chess-p2-who empty'}>
+          <span className={`chess-p2-side ${side === 'w' ? 'light' : 'dark'}`} aria-hidden="true" />
+          {name ? (
+            <Medal name={name} index={rosterIndex} small />
+          ) : (
+            <span className="chess-p2-blank" aria-hidden="true">
+              <PersonIcon size={18} />
+            </span>
+          )}
+          <span className="chess-p2-name">{name ?? 'Choose'}</span>
+          <span className="sr-only">, plays {side === 'w' ? 'White' : 'Black'}</span>
+        </span>
+        <span className="chess-p2-chev" aria-hidden="true">›</span>
+      </button>
+      <button
+        type="button"
+        className="chess-swap"
+        aria-pressed={side === 'w'}
+        onClick={onSwap}
+        data-testid="chess-swap"
+      >
+        <ShuffleIcon size={22} />
+        <span className="chess-swap-tx">Swap</span>
+        <span className="sr-only"> sides</span>
+      </button>
+    </div>
   );
 }
 

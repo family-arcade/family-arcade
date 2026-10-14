@@ -391,18 +391,6 @@ export const PersonIcon = (p: IconProps) =>
     p,
   );
 
-/** Two people, one behind the other — a game for two players. */
-export const PeopleIcon = (p: IconProps) =>
-  svg(
-    <>
-      <circle cx="9" cy="8.6" r="3.6" />
-      <path d="M2.4 20.2a6.6 6.6 0 0 1 13.2 0" />
-      <path d="M14.6 5.2a3.6 3.6 0 0 1 0 6.8" />
-      <path d="M17.6 14.3a6.6 6.6 0 0 1 4 5.9" />
-    </>,
-    p,
-  );
-
 /** A friendly robot head — a computer player's seat. */
 export const BotIcon = (p: IconProps) =>
   svg(

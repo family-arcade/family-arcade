@@ -1,10 +1,10 @@
 {
   "errors": 0,
   "warnings": 58,
-  "testFiles": 228,
-  "testFilesTotal": 228,
-  "tests": 3475,
-  "testsTotal": 3475,
-  "mainBytes": 873879,
+  "testFiles": 231,
+  "testFilesTotal": 231,
+  "tests": 3495,
+  "testsTotal": 3495,
+  "mainBytes": 877084,
   "precache": 86
 }

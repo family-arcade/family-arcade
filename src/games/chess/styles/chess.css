@@ -641,6 +641,8 @@ body:has(.chess-immersive) .party-root {
   --cl-title-glow: none;
   --cl-tfont: inherit;
   --cl-row-bg: var(--surface);
+  --cl-sq-light: #e3d9bd;
+  --cl-sq-dark: #7a6244;
 }
 .chess-theme-classic.chess-lobby {
   --cl-panel: linear-gradient(180deg, #3c2a19, #2c1d11);
@@ -658,6 +660,8 @@ body:has(.chess-immersive) .party-root {
   --cl-title-glow: 0 1px 0 #000;
   --cl-tfont: 'Hoefler Text', 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
   --cl-row-bg: rgba(32, 21, 12, 0.6);
+  --cl-sq-light: linear-gradient(150deg, #efe8d7, #d8cbaa);
+  --cl-sq-dark: linear-gradient(150deg, #6b563b, #4c3a25);
 }
 .chess-theme-unicorn.chess-lobby {
   --cl-panel: linear-gradient(180deg, #4b2b64, #3a2150);
@@ -675,6 +679,8 @@ body:has(.chess-immersive) .party-root {
   --cl-coin-ring: #4a2a55;
   --cl-title-glow: 0 0 14px rgba(255, 126, 192, 0.5);
   --cl-row-bg: rgba(42, 20, 56, 0.6);
+  --cl-sq-light: linear-gradient(150deg, #fdeaf7, #f7d3ec);
+  --cl-sq-dark: linear-gradient(150deg, #e2abdc, #cf92cf);
 }
 .chess-theme-galaxy.chess-lobby {
   --cl-panel: linear-gradient(180deg, rgba(24, 36, 62, 0.92), rgba(14, 22, 40, 0.92));
@@ -693,6 +699,8 @@ body:has(.chess-immersive) .party-root {
   --cl-coin-glow: 0 0 22px rgba(255, 207, 74, 0.45);
   --cl-title-glow: 0 0 16px rgba(255, 207, 74, 0.4);
   --cl-row-bg: rgba(10, 16, 30, 0.55);
+  --cl-sq-light: linear-gradient(150deg, #3a4a70, #2c3858);
+  --cl-sq-dark: linear-gradient(150deg, #1a2338, #10182a);
 }
 
 /* The back corner already leads out; the footer link would only crowd the cards. */
@@ -772,7 +780,26 @@ body:has(.chess-immersive) .party-root {
 .chess-count .chess-coin { position: absolute; left: 22px; top: 32px; --d: 76px; }
 .chess-count-pic,
 .chess-way-pic { display: grid; place-items: center; color: var(--cl-icon); filter: var(--cl-icon-glow); }
-.chess-count-pic svg { width: clamp(96px, 24vh, 240px); height: auto; }
+/* The count cards' picture: a 4×4 corner of the board in the world's own
+   squares, with the classic king (and the queen for two) standing on it. */
+.chess-count-board {
+  --cb: clamp(120px, 27vh, 280px);
+  position: relative;
+  width: var(--cb); height: var(--cb);
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  border-radius: 6px; overflow: hidden;
+  box-shadow: 0 0 0 3px var(--cl-line), 0 12px 26px -12px #000;
+}
+.chess-count .chess-count-pic { filter: none; }
+.ccb-sq.light { background: var(--cl-sq-light); }
+.ccb-sq.dark { background: var(--cl-sq-dark); }
+.ccb-pieces {
+  position: absolute; inset: 0;
+  display: flex; align-items: flex-end; justify-content: center;
+  padding-bottom: calc(var(--cb) * 0.1);
+}
+.ccb-pieces svg { width: calc(var(--cb) * 0.72); height: auto; flex: none; }
+.chess-count-board[data-count='2'] .ccb-pieces svg { width: calc(var(--cb) * 0.64); margin: 0 calc(var(--cb) * -0.09); }
 .chess-count-label { font-size: clamp(30px, 4.4vh, 44px); font-weight: 800; color: var(--cl-title); text-shadow: var(--cl-title-glow); }
 
 /* Ways screens: one tall card per way to play; three fit across when 1 player gets Computer. */
@@ -799,16 +826,17 @@ body:has(.chess-immersive) .party-root {
 /* Two lines held for every card, so the icons and labels line up across a row. */
 .chess-way-line { font-size: 18px; line-height: 1.35; min-height: 2.7em; color: var(--cl-mut); max-width: 320px; }
 
-/* The second chair, under Same device. */
+/* The second chair, under Same device, with Swap beside it. */
+.chess-p2-line { display: flex; gap: 10px; min-width: 0; }
 .chess-lobby .chess-p2 {
   display: flex; align-items: center; gap: 12px;
-  width: 100%; min-height: 60px; padding: 8px 18px 8px 20px;
+  flex: 1; min-width: 0; min-height: 60px; padding: 8px 18px 8px 20px;
   border-radius: 999px;
   background: var(--cl-row-bg); border: 1.5px solid var(--cl-line);
   color: var(--text); font: inherit; font-size: 18px; text-align: left; cursor: pointer;
 }
-.chess-p2-label { color: var(--cl-mut); font-weight: 700; }
-.chess-p2-who { display: inline-flex; align-items: center; gap: 10px; margin-left: auto; font-weight: 800; }
+.chess-p2-label { color: var(--cl-mut); font-weight: 700; white-space: nowrap; }
+.chess-p2-who { display: inline-flex; align-items: center; gap: 10px; min-width: 0; margin-left: auto; font-weight: 800; }
 .chess-p2-who.empty { color: var(--cl-title); }
 .chess-p2-blank {
   width: 30px; height: 30px; border-radius: 50%;
@@ -816,6 +844,22 @@ body:has(.chess-immersive) .party-root {
   border: 1.5px dashed var(--cl-line); color: var(--cl-mut);
 }
 .chess-p2-chev { font-size: 22px; color: var(--cl-mut); }
+.chess-p2-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* The colour Player 2 plays, as a pawn would show it. */
+.chess-p2-side {
+  flex: none; width: 22px; height: 22px; border-radius: 50%;
+  border: 2px solid #cbd5e1;
+}
+.chess-p2-side.light { background: #f8fafc; }
+.chess-p2-side.dark { background: #111827; }
+.chess-lobby .chess-swap {
+  flex: none; display: inline-flex; align-items: center; gap: 8px;
+  min-height: 60px; padding: 8px 20px;
+  border-radius: 999px;
+  background: var(--cl-row-bg); border: 1.5px solid var(--cl-line);
+  color: var(--cl-mut); font: inherit; font-size: 18px; font-weight: 700; cursor: pointer;
+}
+.chess-lobby .chess-swap[aria-pressed='true'] { color: var(--cl-title); }
 
 /* Quiet rows under the count cards: a saved game, Join with a code. */
 .chess-rows { display: flex; flex-wrap: wrap; justify-content: center; gap: 14px; }
@@ -844,11 +888,13 @@ body:has(.chess-immersive) .party-root {
 .chess-count:hover,
 .chess-way:hover,
 .chess-lobby .chess-p2:hover,
+.chess-lobby .chess-swap:hover,
 .chess-lobby .chess-row:hover { border-color: var(--cl-title); }
 .chess-lobby .chess-corner:focus-visible,
 .chess-count:focus-visible,
 .chess-way:focus-visible,
 .chess-lobby .chess-p2:focus-visible,
+.chess-lobby .chess-swap:focus-visible,
 .chess-lobby .chess-row:focus-visible { outline: 3px solid var(--cl-focus); outline-offset: 3px; }
 @media (prefers-reduced-motion: no-preference) {
   .chess-count,
@@ -865,8 +911,15 @@ body:has(.chess-immersive) .party-root {
   .chess-sign-rule { display: none; }
   .chess-counts { flex-direction: column; align-items: center; gap: 16px; }
   .chess-count { width: 100%; height: 220px; }
+  .chess-count-board { --cb: 112px; }
   .chess-ways { grid-auto-flow: row; }
-  .chess-way { height: 240px; }
+  .chess-way { height: auto; min-height: 240px; }
+  /* Swap keeps its icon; the word stays for screen readers. */
+  .chess-swap-tx {
+    position: absolute; width: 1px; height: 1px; overflow: hidden;
+    clip: rect(0 0 0 0); white-space: nowrap;
+  }
+  .chess-lobby .chess-swap { padding: 8px 18px; }
 }
 
 /* The party host's colour pick: White, Black, or the coin — three across on a

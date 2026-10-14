@@ -12,6 +12,8 @@ interface PieceProps {
   color: Color;
   type: PieceType;
   size?: number;
+  /** The carved ivory-and-ebony set in every world (the lobby's count cards). */
+  classic?: boolean;
 }
 
 // Paths are drawn in a 45×45 box (the de-facto chess-SVG canvas), baseline base
@@ -291,9 +293,9 @@ const THEMED_SETS: Record<'unicorn' | 'galaxy', ThemedSet> = {
   },
 };
 
-export function ChessPiece({ color, type, size = 44 }: PieceProps) {
+export function ChessPiece({ color, type, size = 44, classic = false }: PieceProps) {
   const { theme } = useChessTheme();
-  if (theme !== 'classic') {
+  if (theme !== 'classic' && !classic) {
     const set = THEMED_SETS[theme];
     const c = set.colors[color];
     return (

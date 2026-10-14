@@ -774,15 +774,46 @@ describe('<ChessPage> — local flow', () => {
     expect(localStorage.getItem(LINEUP_KEY)).toBeNull();
   });
 
-  it('the player holding the device is White; the remembered lineup only fills Player 2', () => {
-    // Last time Flora played White against Rio; Rio holds the device now.
-    setLineup('chess', [{ userId: 'u2' }, { userId: 'u1' }]);
+  it('Swap gives Player 2 White, one tap away, and the next visit remembers it', () => {
+    const first = renderPage();
+    fireEvent.click(screen.getByTestId('chess-count-2'));
+    fireEvent.click(screen.getByTestId('chess-player2'));
+    fireEvent.click(screen.getByTestId('chess-p2-user-u2'));
+    expect(screen.getByTestId('chess-player2')).toHaveAccessibleName(/Flora\s*, plays Black/);
+
+    const swap = screen.getByRole('button', { name: 'Swap sides' });
+    expect(swap).toHaveAttribute('aria-pressed', 'false');
+    fireEvent.click(swap);
+    expect(swap).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('chess-player2')).toHaveAccessibleName(/Flora\s*, plays White/);
+
+    // Flora moves first; Rio answers as Black.
+    fireEvent.click(screen.getByTestId('mode-local'));
+    expect(screen.getByTestId('chess-turn')).toHaveTextContent(/Flora to move/);
+    fireEvent.click(screen.getByTestId('sq-e2'));
+    fireEvent.click(screen.getByTestId('sq-e4'));
+    expect(screen.getByTestId('chess-turn')).toHaveTextContent(/Rio to move/);
+    expect(JSON.parse(localStorage.getItem(LINEUP_KEY) ?? '{}').chess).toEqual([{ userId: 'u2' }, { userId: 'u1' }]);
+    first.unmount();
+
+    // Next visit: still swapped, and Swap puts Rio back on White.
     renderPage();
     fireEvent.click(screen.getByTestId('chess-count-2'));
-    expect(screen.getByTestId('chess-player2')).toHaveTextContent('Flora');
+    expect(screen.getByTestId('chess-swap')).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(screen.getByTestId('chess-swap'));
     fireEvent.click(screen.getByTestId('mode-local'));
     expect(screen.getByTestId('chess-turn')).toHaveTextContent(/Rio to move/);
     expect(JSON.parse(localStorage.getItem(LINEUP_KEY) ?? '{}').chess).toEqual([{ userId: 'u1' }, { userId: 'u2' }]);
+  });
+
+  it('a lineup with someone else at Black still seats Rio as White', () => {
+    // Last time Flora played White against Kai; Rio holds the device now.
+    setLineup('chess', [{ userId: 'u2' }, { userId: 'u3' }]);
+    renderPage();
+    fireEvent.click(screen.getByTestId('chess-count-2'));
+    expect(screen.getByTestId('chess-swap')).toHaveAttribute('aria-pressed', 'false');
+    fireEvent.click(screen.getByTestId('mode-local'));
+    expect(screen.getByTestId('chess-turn')).toHaveTextContent(/Rio to move/);
   });
 });
 

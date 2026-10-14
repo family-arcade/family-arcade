@@ -505,8 +505,9 @@ const SHOTS = [
         localStorage.setItem('chess-theme-v1', 'galaxy');
       });
       await page.reload();
+      await page.getByTestId('chess-count-2').click();
       await page.getByTestId('mode-local').click();
-      await page.getByTestId('start-local').click();
+      await page.getByTestId('chess-p2-user-seed-flora').click();
       await page.getByTestId('chess3d').waitFor();
       // Scene, starfield, and the async piece models all need to land.
       await page.waitForTimeout(3500);
@@ -549,16 +550,79 @@ const SHOTS = [
     viewport: PHONE,
     prep: playRiskToAttack,
   },
+  // ── The Chess lobby, count first: 1 player or 2, then the ways that fit ──
   {
-    // Chess same-device: two chairs filled from the roster, White and Black.
-    name: 'chess-seats',
+    // The count screen in Galaxy: two tall cards, the coin and the icon say the count.
+    name: 'chess-count-galaxy',
     path: '/#/chess',
     viewport: TABLET,
+    expect: '[data-testid="chess-count-2"]',
+    fits: true,
+    prep: chessTheme('galaxy'),
+  },
+  {
+    name: 'chess-count-galaxy-laptop',
+    path: '/#/chess',
+    viewport: LAPTOP,
+    expect: '[data-testid="chess-count-2"]',
+    fits: true,
+    prep: chessTheme('galaxy'),
+  },
+  {
+    // 1 player: Play together and Free play, the 1P coin beside the back corner.
+    name: 'chess-one-galaxy',
+    path: '/#/chess',
+    viewport: TABLET,
+    expect: '[data-testid="mode-free"]',
+    fits: true,
     prep: async (page) => {
-      await page.getByTestId('mode-local').click();
-      await page.getByTestId('seat-0').waitFor();
-      await page.getByTestId('strip-user-seed-flora').click();
+      await chessTheme('galaxy')(page);
+      await page.getByTestId('chess-count-1').click();
+      await page.mouse.move(0, 0); // no hover glow on the card under the tap
     },
+  },
+  {
+    // 2 players: Same device with Flora picked for Player 2 in the arcade's picker.
+    name: 'chess-two-galaxy',
+    path: '/#/chess',
+    viewport: TABLET,
+    expect: '[data-testid="chess-player2"] .pmedal',
+    fits: true,
+    prep: async (page) => {
+      await chessTheme('galaxy')(page);
+      await page.getByTestId('chess-count-2').click();
+      await page.getByTestId('chess-player2').click();
+      await page.getByTestId('chess-p2-user-seed-flora').click();
+      await page.mouse.move(0, 0);
+    },
+  },
+  {
+    // The arcade's player picker, opened for the second chair.
+    name: 'chess-two-picker-galaxy',
+    path: '/#/chess',
+    viewport: TABLET,
+    expect: '[data-testid="chess-p2-picker"]',
+    prep: async (page) => {
+      await chessTheme('galaxy')(page);
+      await page.getByTestId('chess-count-2').click();
+      await page.getByTestId('mode-local').click();
+    },
+  },
+  {
+    name: 'chess-count-classic',
+    path: '/#/chess',
+    viewport: TABLET,
+    expect: '[data-testid="chess-count-2"]',
+    fits: true,
+    prep: chessTheme('classic'),
+  },
+  {
+    name: 'chess-count-unicorn',
+    path: '/#/chess',
+    viewport: TABLET,
+    expect: '[data-testid="chess-count-2"]',
+    fits: true,
+    prep: chessTheme('unicorn'),
   },
   {
     // Free play: the board owns the window; trays, hint and Start/Menu float
@@ -567,6 +631,7 @@ const SHOTS = [
     path: '/#/chess',
     viewport: TABLET,
     prep: async (page) => {
+      await page.getByTestId('chess-count-1').click();
       await page.getByTestId('mode-free').click();
       await page.getByTestId('fp-board').waitFor();
       await page.getByTestId('fp-tray-w-q').click();
@@ -582,6 +647,7 @@ const SHOTS = [
     path: '/#/chess',
     viewport: PHONE,
     prep: async (page) => {
+      await page.getByTestId('chess-count-1').click();
       await page.getByTestId('mode-free').click();
       await page.getByTestId('fp-board').waitFor();
     },
@@ -670,6 +736,7 @@ const SHOTS = [
     path: '/preview-lobbies.html?scene=host#/chess',
     viewport: TABLET,
     prep: async (page) => {
+      await page.getByTestId('chess-count-2').click();
       await page.getByTestId('mode-online').click();
       await page.getByTestId('chess-party-play').waitFor();
     },
@@ -680,6 +747,7 @@ const SHOTS = [
     path: '/preview-lobbies.html?scene=guest#/chess',
     viewport: TABLET,
     prep: async (page) => {
+      await page.getByTestId('chess-count-2').click();
       await page.getByTestId('mode-online').click();
       await page.getByTestId('chess-party-waiting').waitFor();
     },
@@ -1154,6 +1222,15 @@ const SEED_ROSTER = {
     },
   ],
 };
+
+/** A prep that opens Chess in one world: the theme is remembered per device. */
+function chessTheme(theme) {
+  return async (page) => {
+    await page.evaluate((t) => localStorage.setItem('chess-theme-v1', t), theme);
+    await page.reload();
+    await page.getByTestId('chess-count-2').waitFor();
+  };
+}
 
 /**
  * Risk has no harness page: the board only exists once a campaign is under way,

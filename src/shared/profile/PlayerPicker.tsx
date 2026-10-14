@@ -23,6 +23,8 @@ import './player.css';
 export function PlayerPicker({
   users,
   activeId = null,
+  hideIds,
+  title,
   testIdPrefix,
   onPick,
   onCreate,
@@ -30,6 +32,10 @@ export function PlayerPicker({
 }: {
   users: StoredUser[];
   activeId?: string | null;
+  /** Tickets left off the deck, such as a player already at the table. */
+  hideIds?: readonly string[];
+  /** The heading; a chair at a table names itself ("Player 2"). */
+  title?: string;
   testIdPrefix?: string;
   onPick: (id: string) => void;
   onCreate: (name: string) => void;
@@ -51,9 +57,14 @@ export function PlayerPicker({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="modal ppicker" role="dialog" aria-modal="true" aria-label="Choose who is playing">
+      <div
+        className="modal ppicker"
+        role="dialog"
+        aria-modal="true"
+        aria-label={title ? `Choose ${title}` : 'Choose who is playing'}
+      >
         <div className="modal-head">
-          <span className="modal-title">Who&apos;s playing?</span>
+          <span className="modal-title">{title ?? <>Who&apos;s playing?</>}</span>
           <button
             ref={closeRef}
             type="button"
@@ -69,6 +80,7 @@ export function PlayerPicker({
           <TicketList
             users={users}
             activeId={activeId}
+            hideIds={hideIds}
             testIdPrefix={testIdPrefix}
             onPick={onPick}
             onCreate={onCreate}

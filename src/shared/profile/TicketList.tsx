@@ -21,6 +21,7 @@ import './player.css';
 export function TicketList({
   users,
   activeId = null,
+  hideIds,
   onPick,
   onCreate,
   testIdPrefix = 'ticket',
@@ -28,6 +29,8 @@ export function TicketList({
   users: StoredUser[];
   /** The signed-in ticket — marked "you", still tappable. */
   activeId?: string | null;
+  /** Tickets left off the list, such as a player already sitting at the table. */
+  hideIds?: readonly string[];
   onPick: (id: string) => void;
   /** Called with a trimmed, non-blank name nobody has yet. */
   onCreate: (name: string) => void;
@@ -45,7 +48,9 @@ export function TicketList({
     if (firstTicket) fieldRef.current?.focus();
   }, [firstTicket]);
 
-  const matches = matchTickets(users, query);
+  // Hidden tickets still count for "nobody called that yet", so a hidden name
+  // can't be made twice.
+  const matches = matchTickets(users, query).filter((u) => !hideIds?.includes(u.id));
   const name = query.trim();
   const creatable = matches.length === 0 && canCreateTicket(users, query);
 

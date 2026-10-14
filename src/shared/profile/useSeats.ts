@@ -22,8 +22,8 @@ export interface UseSeats {
   /** The signed-in ticket's id, for the "you" mark. */
   activeId: string | null;
   setSeats: (next: Seat[]) => void;
-  /** Persist this lineup for the game — call when the game starts. */
-  remember: () => void;
+  /** Persist this lineup (or the chairs given) for the game — call when the game starts. */
+  remember: (seats?: Seat[]) => void;
 }
 
 export function useSeats(gameId: string, count: number): UseSeats {
@@ -36,7 +36,9 @@ export function useSeats(gameId: string, count: number): UseSeats {
 
   // Called from click handlers only; the array is fresh every render, so a
   // memoised version would be rebuilt every time anyway.
-  const remember = () => setLineup(gameId, lineupOf(seats));
+  // A game that seats and starts in one tap passes the chairs it just chose,
+  // since `seats` still holds the render's.
+  const remember = (chairs: Seat[] = seats) => setLineup(gameId, lineupOf(chairs));
   const setSeats = (next: Seat[]) => setChosen(next);
 
   return { seats, users: roster.users, activeId: roster.activeId, setSeats, remember };
